@@ -358,6 +358,43 @@ exports.getRangeReport = async (req, res) => {
   }
 };
 
+// GET /api/attendance/office/:officeId?date=YYYY-MM-DD
+exports.getOfficeAttendance = async (req, res) => {
+  try {
+    const { date } = req.query;
+    const reportDate = date || today();
+
+    const officeEmployees = await Employee.find({ officeId: req.params.officeId, isActive: true })
+      .select("name employeeCode designation workingHours officeId");
+
+    const records = await Attendance.find({ officeId: req.params.officeId, date: reportDate })
+      .populate("employeeId", "name employeeCode designation workingHours");
+
+    const presentIds = new Set(records.map(r => r.employeeId?._id?.toString()));
+
+    const present = records.map(rec => {
+      const emp = rec.employeeId;
+      const analysis = emp ? analyzeAttendance(rec, emp) : {};
+      return { employeeId: emp?._id, name: emp?.name, employeeCode: emp?.employeeCode, designation: emp?.designation, date: rec.date, ...analysis };
+    });
+
+    const absent = officeEmployees
+      .filter(e => !presentIds.has(e._id.toString()))
+      .map(e => ({ employeeId: e._id, name: e.name, employeeCode: e.employeeCode, designation: e.designation, status: "absent" }));
+
+    res.json({
+      summary: {
+        total: officeEmployees.length,
+        present: present.filter(r => r.status === "present").length,
+        halfDay: present.filter(r => r.status === "half-day").length,
+        absent: absent.length + present.filter(r => r.status === "absent").length,
+        late: present.filter(r => r.isLate).length,
+      },
+      present, absent,
+    });
+  } catch (err) { res.status(500).json({ message: err.message }); }
+};
+
 // GET /api/attendance/employee/:employeeId?month=YYYY-MM
 exports.getEmployeeAttendance = async (req, res) => {
   try {
