@@ -1,8 +1,26 @@
 const Employee = require("../models/Employee");
+const Admin = require("../models/Admin");
 
 // POST /api/admin/employees
 exports.createEmployee = async (req, res) => {
   try {
+    // Check admin validity and limits
+    const admin = await Admin.findById(req.user.id);
+    if (!admin || !admin.isAccountValid) {
+      return res.status(403).json({ 
+        message: "Your account has expired. Please renew your subscription.",
+        expired: true
+      });
+    }
+
+    const currentEmployees = await Employee.countDocuments({ adminId: req.user.id, isActive: true });
+    if (currentEmployees >= admin.maxEmployees) {
+      return res.status(400).json({ 
+        message: `Maximum ${admin.maxEmployees} employees allowed for your ${admin.accountType} account`,
+        limitReached: true
+      });
+    }
+
     const employee = await Employee.create({ ...req.body, adminId: req.user.id });
     res.status(201).json(employee);
   } catch (err) {
@@ -13,9 +31,30 @@ exports.createEmployee = async (req, res) => {
 // GET /api/admin/employees
 exports.getEmployees = async (req, res) => {
   try {
+    // Check admin validity
+    const admin = await Admin.findById(req.user.id);
+    if (!admin || !admin.isAccountValid) {
+      return res.status(403).json({ 
+        message: "Your account has expired. Please renew your subscription.",
+        expired: true,
+        accountType: admin?.accountType,
+        validUntil: admin?.validUntil
+      });
+    }
+
     const employees = await Employee.find({ adminId: req.user.id, isActive: true })
       .populate("officeId", "name address lat long radius");
-    res.json(employees);
+    
+    res.json({ 
+      employees, 
+      subscription: {
+        accountType: admin.accountType,
+        validUntil: admin.validUntil,
+        maxEmployees: admin.maxEmployees,
+        currentEmployees: employees.length,
+        isExpired: admin.isExpired
+      }
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

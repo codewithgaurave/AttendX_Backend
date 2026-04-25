@@ -94,12 +94,144 @@ exports.getEmployeesByAdmin = async (req, res) => {
   }
 };
 
-// POST /api/attendance/checkin
+// POST /api/attendance/smart - Smart attendance (auto punch in/out)
+exports.smartAttendance = async (req, res) => {
+  try {
+    const { employeeId, adminId, lat, long } = req.body;
+
+    if (!lat || !long) return res.status(400).json({ message: "GPS location required" });
+
+    // Check admin validity first
+    const Admin = require('../models/Admin');
+    const admin = await Admin.findById(adminId);
+    if (!admin) {
+      return res.status(404).json({ message: "Admin not found" });
+    }
+
+    const isValid = await admin.checkValidity();
+    if (!isValid || !admin.canScanAttendance) {
+      return res.status(403).json({ 
+        message: "Attendance scanning is disabled. Subscription has expired. Please contact your administrator.",
+        expired: true
+      });
+    }
+
+    const employee = await Employee.findById(employeeId).populate("officeId");
+    if (!employee) return res.status(404).json({ message: "Employee not found" });
+
+    const office = employee.officeId;
+    const geo = await checkGeofence(lat, long, office.lat, office.long, office.radius);
+
+    if (!geo.withinRadius) {
+      return res.status(403).json({
+        message: "You are outside the office zone",
+        violation: geo.violation,
+        distance: geo.distance,
+        allowedRadius: geo.allowedRadius,
+        yourLocation: geo.address,
+      });
+    }
+
+    const date = today();
+    const existing = await Attendance.findOne({ employeeId, date });
+    
+    // Decide: punch in or punch out
+    const shouldPunchIn = !existing?.checkIn?.time;
+    const shouldPunchOut = existing?.checkIn?.time && !existing?.checkOut?.time;
+    
+    if (!shouldPunchIn && !shouldPunchOut) {
+      return res.status(400).json({ 
+        message: "Attendance already completed for today",
+        attendance: existing 
+      });
+    }
+
+    const now = new Date();
+    
+    if (shouldPunchIn) {
+      // Punch In Logic
+      const actualStart = now.getHours() * 60 + now.getMinutes();
+      const scheduledStart = timeToMinutes(employee.workingHours?.startTime || "09:00");
+      const lateBy = actualStart - scheduledStart;
+
+      const attendance = await Attendance.findOneAndUpdate(
+        { employeeId, date },
+        {
+          adminId,
+          officeId: office._id,
+          date,
+          checkIn: {
+            time: now,
+            lat: geo.snappedLat,
+            long: geo.snappedLong,
+            address: geo.address,
+            withinRadius: geo.withinRadius,
+            distance: geo.distance,
+          },
+        },
+        { upsert: true, new: true }
+      );
+
+      return res.json({
+        action: 'punch-in',
+        message: "Check-in successful",
+        withinRadius: geo.withinRadius,
+        distance: geo.distance,
+        location: geo.address,
+        isLate: lateBy > 0,
+        lateBy: lateBy > 0 ? minsToHHMM(lateBy) : null,
+        scheduledStart: employee.workingHours?.startTime,
+        attendance,
+      });
+    } else {
+      // Punch Out Logic
+      existing.checkOut = {
+        time: now,
+        lat: geo.snappedLat,
+        long: geo.snappedLong,
+        address: geo.address,
+        withinRadius: geo.withinRadius,
+        distance: geo.distance,
+      };
+
+      // Calculate analysis and update status
+      const analysis = analyzeAttendance({ ...existing.toObject(), checkOut: { time: now } }, employee);
+      existing.status = analysis.status;
+      await existing.save();
+
+      return res.json({
+        action: 'punch-out',
+        message: "Check-out successful",
+        withinRadius: geo.withinRadius,
+        distance: geo.distance,
+        location: geo.address,
+        analysis,
+        attendance: existing,
+      });
+    }
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
 exports.checkIn = async (req, res) => {
   try {
     const { employeeId, adminId, lat, long, selfie } = req.body;
 
     if (!lat || !long) return res.status(400).json({ message: "GPS location required" });
+
+    // Check admin validity first
+    const admin = await Admin.findById(adminId);
+    if (!admin) {
+      return res.status(404).json({ message: "Admin not found" });
+    }
+
+    const isValid = await admin.checkValidity();
+    if (!isValid || !admin.canScanAttendance) {
+      return res.status(403).json({ 
+        message: "Attendance scanning is disabled. Subscription has expired. Please contact your administrator.",
+        expired: true
+      });
+    }
 
     const employee = await Employee.findById(employeeId).populate("officeId");
     if (!employee) return res.status(404).json({ message: "Employee not found" });
@@ -393,6 +525,82 @@ exports.getOfficeAttendance = async (req, res) => {
       present, absent,
     });
   } catch (err) { res.status(500).json({ message: err.message }); }
+};
+
+// POST /api/attendance/mark - Manual attendance marking by admin
+exports.markAttendance = async (req, res) => {
+  try {
+    const { employeeId, date, status } = req.body;
+    
+    if (!employeeId || !date || !status) {
+      return res.status(400).json({ message: "employeeId, date, and status are required" });
+    }
+
+    if (!['present', 'absent', 'half-day'].includes(status)) {
+      return res.status(400).json({ message: "Invalid status. Must be present, absent, or half-day" });
+    }
+
+    const employee = await Employee.findById(employeeId);
+    if (!employee) return res.status(404).json({ message: "Employee not found" });
+
+    // Find or create attendance record
+    let attendance = await Attendance.findOne({ employeeId, date });
+    
+    if (!attendance) {
+      attendance = new Attendance({
+        employeeId,
+        adminId: employee.adminId,
+        officeId: employee.officeId,
+        date,
+        status,
+        manuallyMarked: true,
+        markedBy: req.user.id,
+        markedAt: new Date()
+      });
+    } else {
+      attendance.status = status;
+      attendance.manuallyMarked = true;
+      attendance.markedBy = req.user.id;
+      attendance.markedAt = new Date();
+    }
+
+    // For manual marking, add dummy check-in/out times based on working hours
+    if (status === 'present' || status === 'half-day') {
+      const workingHours = employee.workingHours || { startTime: '09:00', endTime: '18:00' };
+      const dateObj = new Date(date);
+      
+      if (!attendance.checkIn?.time) {
+        const [startHour, startMin] = workingHours.startTime.split(':').map(Number);
+        const checkInTime = new Date(dateObj);
+        checkInTime.setHours(startHour, startMin, 0, 0);
+        
+        attendance.checkIn = {
+          time: checkInTime,
+          manuallyMarked: true
+        };
+      }
+      
+      if (status === 'present' && !attendance.checkOut?.time) {
+        const [endHour, endMin] = workingHours.endTime.split(':').map(Number);
+        const checkOutTime = new Date(dateObj);
+        checkOutTime.setHours(endHour, endMin, 0, 0);
+        
+        attendance.checkOut = {
+          time: checkOutTime,
+          manuallyMarked: true
+        };
+      }
+    }
+
+    await attendance.save();
+
+    res.json({
+      message: `Attendance marked as ${status}`,
+      attendance
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
 };
 
 // GET /api/attendance/employee/:employeeId?month=YYYY-MM

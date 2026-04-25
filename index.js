@@ -11,6 +11,7 @@ app.use("/uploads", express.static("uploads"));
 
 // Routes
 app.use("/api/auth", require("./routes/auth"));
+app.use("/api/master", require("./routes/masterAdmin"));
 app.use("/api/superadmin", require("./routes/superAdmin"));
 app.use("/api/admin", require("./routes/admin"));
 app.use("/api/attendance", require("./routes/attendance"));
