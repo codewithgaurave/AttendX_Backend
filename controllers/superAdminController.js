@@ -5,7 +5,14 @@ const QRCode = require("qrcode");
 // POST /api/superadmin/admins
 exports.createAdmin = async (req, res) => {
   try {
-    const { name, email, password, phone, companyName } = req.body;
+    const { name, email, password, phone, companyName, accountType } = req.body;
+
+    // Block any attempt to create paid accounts
+    if (accountType && accountType !== 'demo') {
+      return res.status(403).json({ 
+        message: "SuperAdmins can only create demo accounts. Contact Master Admin for paid accounts."
+      });
+    }
 
     // Check SuperAdmin validity
     const superAdmin = await SuperAdmin.findById(req.user.id);
@@ -115,8 +122,6 @@ exports.getSubscription = async (req, res) => {
 // PUT /api/superadmin/admins/:id/subscription
 exports.updateAdminSubscription = async (req, res) => {
   try {
-    const { accountType, validityDays, maxEmployees, maxOffices, paymentAmount, paymentMethod } = req.body;
-    
     const superAdmin = await SuperAdmin.findById(req.user.id);
     if (!superAdmin || !superAdmin.isAccountValid) {
       return res.status(403).json({ 
@@ -125,46 +130,9 @@ exports.updateAdminSubscription = async (req, res) => {
       });
     }
 
-    const admin = await Admin.findOne({ 
-      _id: req.params.id, 
-      createdBy: req.user.id 
-    });
-    
-    if (!admin) {
-      return res.status(404).json({ message: "Admin not found" });
-    }
-
-    if (accountType === 'paid') {
-      admin.accountType = 'paid';
-      admin.validUntil = new Date(Date.now() + (validityDays || 30) * 24 * 60 * 60 * 1000);
-      admin.maxEmployees = maxEmployees || 50;
-      admin.maxOffices = maxOffices || 5;
-      admin.isExpired = false;
-      admin.canScanAttendance = true;
-      admin.lastPaymentDate = new Date();
-      admin.paymentAmount = paymentAmount;
-      admin.paymentMethod = paymentMethod;
-    } else {
-      admin.accountType = 'demo';
-      admin.validUntil = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-      admin.maxEmployees = 5;
-      admin.maxOffices = 1;
-      admin.isExpired = false;
-      admin.canScanAttendance = true;
-    }
-    
-    await admin.save();
-    
-    res.json({
-      message: "Admin subscription updated successfully",
-      admin: {
-        id: admin._id,
-        accountType: admin.accountType,
-        validUntil: admin.validUntil,
-        maxEmployees: admin.maxEmployees,
-        maxOffices: admin.maxOffices,
-        isExpired: admin.isExpired
-      }
+    // SuperAdmins cannot update admin subscriptions - only Master Admin can
+    return res.status(403).json({ 
+      message: "Only Master Admin can update admin subscriptions. SuperAdmins can only create demo accounts."
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
