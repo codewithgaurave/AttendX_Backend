@@ -6,7 +6,13 @@ exports.createEmployee = async (req, res) => {
   try {
     // Check admin validity and limits
     const admin = await Admin.findById(req.user.id);
-    if (!admin || !admin.isAccountValid) {
+    if (!admin) {
+      return res.status(404).json({ message: "Admin not found" });
+    }
+
+    // Check if admin account is valid
+    const isValid = admin.isActive && !admin.isExpired && new Date() <= admin.validUntil;
+    if (!isValid) {
       return res.status(403).json({ 
         message: "Your account has expired. Please renew your subscription.",
         expired: true
@@ -24,6 +30,7 @@ exports.createEmployee = async (req, res) => {
     const employee = await Employee.create({ ...req.body, adminId: req.user.id });
     res.status(201).json(employee);
   } catch (err) {
+    console.error('Employee creation error:', err);
     res.status(500).json({ message: err.message });
   }
 };
@@ -33,12 +40,18 @@ exports.getEmployees = async (req, res) => {
   try {
     // Check admin validity
     const admin = await Admin.findById(req.user.id);
-    if (!admin || !admin.isAccountValid) {
+    if (!admin) {
+      return res.status(404).json({ message: "Admin not found" });
+    }
+
+    // Check if admin account is valid
+    const isValid = admin.isActive && !admin.isExpired && new Date() <= admin.validUntil;
+    if (!isValid) {
       return res.status(403).json({ 
         message: "Your account has expired. Please renew your subscription.",
         expired: true,
-        accountType: admin?.accountType,
-        validUntil: admin?.validUntil
+        accountType: admin.accountType,
+        validUntil: admin.validUntil
       });
     }
 
@@ -56,6 +69,7 @@ exports.getEmployees = async (req, res) => {
       }
     });
   } catch (err) {
+    console.error('Get employees error:', err);
     res.status(500).json({ message: err.message });
   }
 };
