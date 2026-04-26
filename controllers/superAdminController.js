@@ -23,6 +23,15 @@ exports.createAdmin = async (req, res) => {
       });
     }
 
+    // Check admin creation limit
+    const currentAdmins = await Admin.countDocuments({ createdBy: req.user.id, isActive: true });
+    if (currentAdmins >= superAdmin.maxAdmins) {
+      return res.status(400).json({ 
+        message: `Maximum ${superAdmin.maxAdmins} admins allowed. Contact Master Admin to increase limit.`,
+        limitReached: true
+      });
+    }
+
     const exists = await Admin.findOne({ email });
     if (exists) return res.status(400).json({ message: "Email already exists" });
 

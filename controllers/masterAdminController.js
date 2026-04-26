@@ -66,7 +66,7 @@ exports.getDashboard = async (req, res) => {
 // POST /api/master/superadmin
 exports.createSuperAdmin = async (req, res) => {
   try {
-    const { name, email, password, phone, company, accountType, validityDays, maxAdmins } = req.body;
+    const { name, email, password, phone, company } = req.body;
     
     const masterAdmin = await MasterAdmin.findById(req.user.id);
     const currentSuperAdmins = await SuperAdmin.countDocuments({ masterAdminId: req.user.id });
@@ -80,15 +80,9 @@ exports.createSuperAdmin = async (req, res) => {
       return res.status(400).json({ message: "Super admin already exists" });
     }
     
-    let validUntil, maxAdminsLimit;
-    
-    if (accountType === 'demo') {
-      validUntil = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
-      maxAdminsLimit = 2;
-    } else {
-      validUntil = new Date(Date.now() + (validityDays || 30) * 24 * 60 * 60 * 1000);
-      maxAdminsLimit = Math.min(maxAdmins || 10, masterAdmin.maxAdminsPerSuperAdmin);
-    }
+    // Master Admin creates SuperAdmins with high limits and long validity
+    const validUntil = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000); // 1 year
+    const maxAdminsLimit = 1000; // High limit for SuperAdmins
     
     const superAdmin = new SuperAdmin({
       name,
@@ -97,7 +91,7 @@ exports.createSuperAdmin = async (req, res) => {
       phone,
       company,
       masterAdminId: req.user.id,
-      accountType: accountType || 'demo',
+      accountType: 'paid', // SuperAdmins are always paid accounts
       validUntil,
       maxAdmins: maxAdminsLimit
     });

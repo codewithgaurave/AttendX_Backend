@@ -12,10 +12,10 @@ const superAdminSchema = new mongoose.Schema({
   masterAdminId: { type: mongoose.Schema.Types.ObjectId, ref: "MasterAdmin", required: true },
   
   // Subscription details
-  accountType: { type: String, enum: ["demo", "paid"], default: "demo" },
+  accountType: { type: String, enum: ["demo", "paid"], default: "paid" },
   validFrom: { type: Date, default: Date.now },
-  validUntil: { type: Date, default: () => new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) }, // 7 days for demo
-  // SuperAdmin can only create demo admins (no limits control)
+  validUntil: { type: Date, default: () => new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) }, // 1 year default
+  maxAdmins: { type: Number, default: 1000 }, // High limit for creating admins
   canCreateAdmins: { type: Boolean, default: true },
   
   isActive: { type: Boolean, default: true },
