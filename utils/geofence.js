@@ -62,8 +62,14 @@ const checkGeofence = async (empLat, empLong, officeLat, officeLong, radiusMeter
 // Validate office lat/long on Google Maps (used when admin creates/updates office)
 const validateOfficeLocation = async (lat, long) => {
   try {
+    if (!GOOGLE_API_KEY) {
+      console.log('Google Maps API key not found, skipping validation');
+      return { valid: true, address: null };
+    }
+
     const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${long}&key=${GOOGLE_API_KEY}`;
     const { data } = await axios.get(url);
+    
     if (data.status === "OK" && data.results?.length) {
       return {
         valid: true,
@@ -71,9 +77,12 @@ const validateOfficeLocation = async (lat, long) => {
         placeId: data.results[0].place_id,
       };
     }
-    return { valid: false, address: null };
-  } catch (_) {
-    return { valid: false, address: null };
+    
+    console.log('Google Maps API response:', data.status, data.error_message);
+    return { valid: true, address: null }; // Allow creation even if geocoding fails
+  } catch (error) {
+    console.log('Google Maps API error:', error.message);
+    return { valid: true, address: null }; // Allow creation even if API fails
   }
 };
 

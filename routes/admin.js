@@ -1,15 +1,17 @@
 const router = require("express").Router();
 const auth = require("../middleware/auth");
 const role = require("../middleware/role");
-const { createOffice, getOffices, updateOffice, deleteOffice, geocodeOfficeAddress } = require("../controllers/officeController");
+const { createOffice, getOffices, updateOffice, deleteOffice, geocodeOfficeAddress, clearAllOffices } = require("../controllers/officeController");
 const { createEmployee, getEmployees, getEmployee, updateEmployee, updateWorkingHours, deleteEmployee } = require("../controllers/employeeController");
 const { getHolidays, createHoliday, updateHoliday, deleteHoliday } = require("../controllers/holidayController");
 const { getSalaryCalc, downloadSalarySlip } = require("../controllers/salaryController");
+const { requestRenewal, getRenewalStatus } = require("../controllers/renewalController");
 
 router.use(auth, role("admin"));
 
 // Office
 router.post("/offices/geocode", geocodeOfficeAddress);
+router.delete("/offices/clear-all", clearAllOffices);
 router.post("/offices", createOffice);
 router.get("/offices", getOffices);
 router.put("/offices/:id", updateOffice);
@@ -32,5 +34,9 @@ router.delete("/holidays/:id", deleteHoliday);
 // Salary
 router.get("/salary/:employeeId", getSalaryCalc);
 router.get("/salary/:employeeId/pdf", downloadSalarySlip);
+
+// Renewal requests
+router.post("/request-renewal", requestRenewal);
+router.get("/renewal-status", getRenewalStatus);
 
 module.exports = router;

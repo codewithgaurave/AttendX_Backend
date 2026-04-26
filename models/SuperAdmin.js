@@ -15,7 +15,8 @@ const superAdminSchema = new mongoose.Schema({
   accountType: { type: String, enum: ["demo", "paid"], default: "demo" },
   validFrom: { type: Date, default: Date.now },
   validUntil: { type: Date, default: () => new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) }, // 7 days for demo
-  maxAdmins: { type: Number, default: 2 }, // Demo limit
+  // SuperAdmin can only create demo admins (no limits control)
+  canCreateAdmins: { type: Boolean, default: true },
   
   isActive: { type: Boolean, default: true },
   isExpired: { type: Boolean, default: false },

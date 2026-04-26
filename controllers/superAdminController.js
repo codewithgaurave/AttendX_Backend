@@ -5,9 +5,9 @@ const QRCode = require("qrcode");
 // POST /api/superadmin/admins
 exports.createAdmin = async (req, res) => {
   try {
-    const { name, email, password, phone, companyName, accountType, validityDays, maxEmployees, maxOffices } = req.body;
+    const { name, email, password, phone, companyName } = req.body;
 
-    // Check SuperAdmin validity and limits
+    // Check SuperAdmin validity
     const superAdmin = await SuperAdmin.findById(req.user.id);
     if (!superAdmin || !superAdmin.isAccountValid) {
       return res.status(403).json({ 
@@ -16,37 +16,18 @@ exports.createAdmin = async (req, res) => {
       });
     }
 
-    const currentAdmins = await Admin.countDocuments({ createdBy: req.user.id, isActive: true });
-    if (currentAdmins >= superAdmin.maxAdmins) {
-      return res.status(400).json({ 
-        message: `Maximum ${superAdmin.maxAdmins} admins allowed for your ${superAdmin.accountType} account`,
-        limitReached: true
-      });
-    }
-
     const exists = await Admin.findOne({ email });
     if (exists) return res.status(400).json({ message: "Email already exists" });
 
-    // Set subscription details for admin
-    let validUntil, maxEmp, maxOff;
-    
-    if (accountType === 'demo') {
-      validUntil = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
-      maxEmp = 5;
-      maxOff = 1;
-    } else {
-      validUntil = new Date(Date.now() + (validityDays || 30) * 24 * 60 * 60 * 1000);
-      maxEmp = maxEmployees || 50;
-      maxOff = maxOffices || 5;
-    }
-
+    // SuperAdmin can only create demo accounts with fixed settings
     const admin = await Admin.create({
       name, email, password, phone, companyName,
       createdBy: req.user.id,
-      accountType: accountType || 'demo',
-      validUntil,
-      maxEmployees: maxEmp,
-      maxOffices: maxOff
+      accountType: "demo", // Always demo
+      validFrom: new Date(),
+      validUntil: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // Always 7 days
+      maxEmployees: 5, // Fixed
+      maxOffices: 1 // Fixed
     });
 
     // Generate QR with admin's ID (employee will scan this)
@@ -57,7 +38,7 @@ exports.createAdmin = async (req, res) => {
     await admin.save();
 
     res.status(201).json({ 
-      message: "Admin created", 
+      message: "Demo admin created successfully", 
       admin: {
         ...admin.toObject(),
         password: undefined
