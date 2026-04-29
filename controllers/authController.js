@@ -8,16 +8,16 @@ const generateToken = (id, role) =>
   jwt.sign({ id, role }, process.env.JWT_SECRET, { expiresIn: "7d" });
 
 // POST /api/auth/login
-// body: { phone, password, role: "masteradmin" | "superadmin" | "admin" }
+// body: { phone, email, password, role: "masteradmin" | "superadmin" | "admin" }
 exports.login = async (req, res) => {
   try {
-    const { phone, password, role } = req.body;
+    const { phone, email, password, role } = req.body;
 
     let user;
     if (role === "masteradmin") {
-      user = await MasterAdmin.findOne({ phone, isActive: true });
+      user = await MasterAdmin.findOne({ email, isActive: true });
     } else if (role === "superadmin") {
-      user = await SuperAdmin.findOne({ phone });
+      user = await SuperAdmin.findOne({ email });
       
       // Check if SuperAdmin account is valid
       if (user && !user.isAccountValid) {
