@@ -16,6 +16,7 @@ const adminSchema = new mongoose.Schema({
   validUntil: { type: Date, default: () => new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) },
   maxEmployees: { type: Number, default: 5 },
   maxOffices: { type: Number, default: 1 },
+  demoUsedDays: { type: Number, default: 0 }, // Track total demo days used
   
   isActive:     { type: Boolean, default: true },
   isExpired: { type: Boolean, default: false },
@@ -72,6 +73,16 @@ adminSchema.methods.approveRenewal = async function(masterAdminId, newValidityDa
 // Check if admin account is valid
 adminSchema.virtual('isAccountValid').get(function() {
   return this.isActive && !this.isExpired && new Date() <= this.validUntil;
+});
+
+// Virtual to calculate demo days used
+adminSchema.virtual('totalDemoUsed').get(function() {
+  if (this.accountType === 'paid') return 0;
+  const startDate = this.validFrom || this.createdAt;
+  const currentDate = new Date();
+  const endDate = this.validUntil < currentDate ? this.validUntil : currentDate;
+  const daysUsed = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+  return Math.max(0, daysUsed);
 });
 
 // Virtual field for company (use companyName if company is not set)

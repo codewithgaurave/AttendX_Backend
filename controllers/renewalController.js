@@ -64,7 +64,23 @@ exports.getPendingRenewals = async (req, res) => {
     .populate('renewalRequestedBy', 'name email company')
     .sort({ renewalRequestDate: -1 });
 
-    res.json(renewalRequests);
+    // Calculate demo usage for each admin
+    const requestsWithDemoUsage = renewalRequests.map(admin => {
+      let totalDemoUsed = 0;
+      if (admin.accountType === 'demo' || !admin.accountType) {
+        const startDate = admin.validFrom || admin.createdAt;
+        const currentDate = new Date();
+        const endDate = admin.validUntil < currentDate ? admin.validUntil : currentDate;
+        totalDemoUsed = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+        totalDemoUsed = Math.max(0, totalDemoUsed);
+      }
+      
+      const adminObj = admin.toObject();
+      adminObj.totalDemoUsed = totalDemoUsed;
+      return adminObj;
+    });
+
+    res.json(requestsWithDemoUsage);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

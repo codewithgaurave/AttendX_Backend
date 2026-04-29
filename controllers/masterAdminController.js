@@ -44,9 +44,13 @@ exports.getDashboard = async (req, res) => {
       .select('-password')
       .sort({ createdAt: -1 });
     
-    const totalAdmins = await Admin.countDocuments({
+    const allAdmins = await Admin.find({
       createdBy: { $in: superAdmins.map(sa => sa._id) }
     });
+    
+    const totalAdmins = allAdmins.length;
+    const demoAdmins = allAdmins.filter(admin => (admin.accountType || 'demo') === 'demo').length;
+    const paidAdmins = allAdmins.filter(admin => admin.accountType === 'paid').length;
     
     const stats = {
       totalSuperAdmins: superAdmins.length,
@@ -54,7 +58,9 @@ exports.getDashboard = async (req, res) => {
       expiredSuperAdmins: superAdmins.filter(sa => sa.isExpired).length,
       totalAdmins,
       demoAccounts: superAdmins.filter(sa => sa.accountType === 'demo').length,
-      paidAccounts: superAdmins.filter(sa => sa.accountType === 'paid').length
+      paidAccounts: superAdmins.filter(sa => sa.accountType === 'paid').length,
+      demoAdmins,
+      paidAdmins
     };
     
     res.json({ stats, superAdmins });
@@ -210,7 +216,23 @@ exports.getSuperAdminDetails = async (req, res) => {
       .select('-password')
       .sort({ createdAt: -1 });
     
-    res.json({ superAdmin, admins });
+    // Calculate demo usage for each admin
+    const adminsWithDemoUsage = admins.map(admin => {
+      let totalDemoUsed = 0;
+      if (admin.accountType === 'demo' || !admin.accountType) {
+        const startDate = admin.validFrom || admin.createdAt;
+        const currentDate = new Date();
+        const endDate = admin.validUntil < currentDate ? admin.validUntil : currentDate;
+        totalDemoUsed = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+        totalDemoUsed = Math.max(0, totalDemoUsed);
+      }
+      
+      const adminObj = admin.toObject();
+      adminObj.totalDemoUsed = totalDemoUsed;
+      return adminObj;
+    });
+    
+    res.json({ superAdmin, admins: adminsWithDemoUsage });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

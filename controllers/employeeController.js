@@ -180,3 +180,23 @@ exports.deleteEmployee = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+// GET /api/admin/superadmin-contact - Get SuperAdmin contact info
+exports.getSuperAdminContact = async (req, res) => {
+  try {
+    const admin = await Admin.findById(req.user.id).populate('createdBy', 'name phone email company');
+    
+    if (!admin || !admin.createdBy) {
+      return res.status(404).json({ message: "SuperAdmin contact not found" });
+    }
+    
+    res.json({
+      name: admin.createdBy.name,
+      phone: admin.createdBy.phone,
+      email: admin.createdBy.email,
+      company: admin.createdBy.company
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};

@@ -6,6 +6,7 @@ const { createEmployee, getEmployees, getEmployee, updateEmployee, updateWorking
 const { getHolidays, createHoliday, updateHoliday, deleteHoliday } = require("../controllers/holidayController");
 const { getSalaryCalc, downloadSalarySlip } = require("../controllers/salaryController");
 const { requestRenewal, getRenewalStatus } = require("../controllers/renewalController");
+const { getSuperAdminContact } = require("../controllers/employeeController");
 
 router.use(auth, role("admin"));
 
@@ -75,5 +76,8 @@ router.get("/test-pdf-download", (req, res) => {
 // Renewal requests
 router.post("/request-renewal", requestRenewal);
 router.get("/renewal-status", getRenewalStatus);
+
+// SuperAdmin contact info
+router.get("/superadmin-contact", getSuperAdminContact);
 
 module.exports = router;

@@ -95,13 +95,28 @@ exports.getAllAdmins = async (req, res) => {
       .populate('renewalRejectedBy', 'name email')
       .sort({ createdAt: -1 });
     
-    // Check validity for each admin
+    // Check validity for each admin and calculate demo usage
+    const adminsWithDemoUsage = [];
     for (let admin of admins) {
       await admin.checkValidity();
+      
+      // Calculate demo days used manually
+      let totalDemoUsed = 0;
+      if (admin.accountType === 'demo' || !admin.accountType) {
+        const startDate = admin.validFrom || admin.createdAt;
+        const currentDate = new Date();
+        const endDate = admin.validUntil < currentDate ? admin.validUntil : currentDate;
+        totalDemoUsed = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+        totalDemoUsed = Math.max(0, totalDemoUsed);
+      }
+      
+      const adminObj = admin.toObject();
+      adminObj.totalDemoUsed = totalDemoUsed;
+      adminsWithDemoUsage.push(adminObj);
     }
     
     res.json({ 
-      admins, 
+      admins: adminsWithDemoUsage, 
       subscription: {
         accountType: superAdmin.accountType,
         validUntil: superAdmin.validUntil,
