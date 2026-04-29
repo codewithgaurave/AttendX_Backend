@@ -5,7 +5,7 @@ require("dotenv").config();
 
 const app = express();
 
-app.use(cors({ origin: ['http://localhost:3000', 'http://localhost:5173', 'https://attend-x-frontend.vercel.app'], credentials: true }));
+app.use(cors({ origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:5173', 'https://attend-x-frontend.vercel.app'], credentials: true }));
 app.use(express.json({ limit: "10mb" })); // 10mb for base64 selfie/QR
 app.use("/uploads", express.static("uploads"));
 
@@ -15,6 +15,11 @@ app.use("/api/master", require("./routes/masterAdmin"));
 app.use("/api/superadmin", require("./routes/superAdmin"));
 app.use("/api/admin", require("./routes/admin"));
 app.use("/api/attendance", require("./routes/attendance"));
+app.use("/api/test", require("./routes/test"));
+
+// Direct salary slip route (bypass auth middleware)
+const { downloadSalarySlipHTML } = require("./controllers/salarySlipHTML");
+app.get("/api/salary-slip/:employeeId", downloadSalarySlipHTML);
 
 mongoose
   .connect(process.env.MONGO_URI)

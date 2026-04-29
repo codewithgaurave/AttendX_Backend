@@ -1,4 +1,5 @@
 const puppeteer = require("puppeteer");
+const pdf = require('html-pdf');
 const Employee  = require("../models/Employee");
 const Attendance = require("../models/Attendance");
 const Holiday   = require("../models/Holiday");
@@ -460,13 +461,40 @@ exports.getSalaryCalc = async (req, res) => {
 
 // GET /api/admin/salary/:employeeId/pdf?month=YYYY-MM
 exports.downloadSalarySlip = async (req, res) => {
+  console.log('=== SALARY SLIP DOWNLOAD START ===');
+  console.log('Employee ID:', req.params.employeeId);
+  console.log('Month:', req.query.month);
+  console.log('Admin ID:', req.user.id);
+  
   try {
     const { month } = req.query;
-    if (!month) return res.status(400).json({ message: "month required" });
+    if (!month) {
+      console.log('ERROR: Month not provided');
+      return res.status(400).json({ message: "month required (YYYY-MM format)" });
+    }
 
+    // Validate month format
+    if (!/^\d{4}-\d{2}$/.test(month)) {
+      console.log('ERROR: Invalid month format:', month);
+      return res.status(400).json({ message: "Invalid month format. Use YYYY-MM" });
+    }
+
+    console.log('Finding employee...');
     const employee = await Employee.findOne({ _id: req.params.employeeId, adminId: req.user.id })
       .populate("officeId", "name");
-    if (!employee) return res.status(404).json({ message: "Employee not found" });
+    
+    if (!employee) {
+      console.log('ERROR: Employee not found');
+      return res.status(404).json({ message: "Employee not found" });
+    }
+    
+    console.log('Employee found:', employee.name, 'Salary:', employee.monthlySalary);
+
+    // Check if employee has salary set
+    if (!employee.monthlySalary || employee.monthlySalary <= 0) {
+      console.log('ERROR: Employee salary not set');
+      return res.status(400).json({ message: "Employee salary not set. Please update employee salary first." });
+    }
 
     const [year, mon] = month.split("-").map(Number);
     const allDates = getDatesInMonth(year, mon);
@@ -504,7 +532,13 @@ exports.downloadSalarySlip = async (req, res) => {
 
     // Generate HTML
     const htmlContent = generateSalarySlipHTML({
-      employee: { name: employee.name, employeeCode: employee.employeeCode, designation: employee.designation, department: employee.department, monthlySalary: employee.monthlySalary },
+      employee: { 
+        name: employee.name, 
+        employeeCode: employee.employeeCode, 
+        designation: employee.designation, 
+        department: employee.department || 'N/A', 
+        monthlySalary: employee.monthlySalary 
+      },
       month, monthLabel,
       attendance: { totalWorkingDays, present, halfDay, absent, weeklyOffs, holidayCount },
       salary: { perDaySalary: parseFloat(perDay.toFixed(2)), earnedDays: earned, deductedDays: deducted, grossSalary: gross, deduction },
@@ -513,15 +547,29 @@ exports.downloadSalarySlip = async (req, res) => {
       netSalary: net
     });
 
-    // Convert HTML to PDF using puppeteer
-    const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
-    const page = await browser.newPage();
-    await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
-    const pdfBuffer = await page.pdf({ format: 'A4', margin: { top: 10, right: 10, bottom: 10, left: 10 } });
-    await browser.close();
+    // Convert HTML to PDF using html-pdf (fallback)
+    const options = {
+      format: 'A4',
+      border: {
+        top: "0.5in",
+        right: "0.5in",
+        bottom: "0.5in",
+        left: "0.5in"
+      }
+    };
 
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `attachment; filename=salary-slip-${employee.employeeCode}-${month}.pdf`);
-    res.send(pdfBuffer);
-  } catch (err) { res.status(500).json({ message: err.message }); }
+    pdf.create(htmlContent, options).toBuffer((err, buffer) => {
+      if (err) {
+        console.error('PDF generation error:', err);
+        return res.status(500).json({ message: "Failed to generate PDF. Please try again." });
+      }
+
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename=salary-slip-${employee.employeeCode}-${month}.pdf`);
+      res.send(buffer);
+    });
+  } catch (err) { 
+    console.error('Salary slip error:', err);
+    res.status(500).json({ message: err.message || "Internal server error" }); 
+  }
 };

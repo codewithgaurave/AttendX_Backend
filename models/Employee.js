@@ -5,7 +5,7 @@ const employeeSchema = new mongoose.Schema({
   officeId:       { type: mongoose.Schema.Types.ObjectId, ref: "Office", required: true },
 
   name:           { type: String, required: true },
-  email:          { type: String, required: true },
+  email:          { type: String },
   phone:          { type: String, required: true },
   employeeCode:   { type: String, required: true },
   designation:    { type: String, required: true },
@@ -28,6 +28,7 @@ const employeeSchema = new mongoose.Schema({
   weeklyOff:     { type: [Number], default: [0] }, // 0=Sun,1=Mon,...,6=Sat
 
   isActive: { type: Boolean, default: true },
+  selfieRequired: { type: Boolean, default: false }, // Admin can set if selfie is mandatory
 }, { timestamps: true });
 
 employeeSchema.index({ adminId: 1, employeeCode: 1 }, { unique: true });

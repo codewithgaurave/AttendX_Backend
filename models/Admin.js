@@ -3,9 +3,9 @@ const bcrypt = require("bcryptjs");
 
 const adminSchema = new mongoose.Schema({
   name:         { type: String, required: true },
-  email:        { type: String, required: true, unique: true },
+  email:        { type: String },                    // Optional now
+  phone:        { type: String, required: true, unique: true }, // Mandatory + unique
   password:     { type: String, required: true },
-  phone:        { type: String, required: true },
   companyName:  { type: String, required: true },
   qrCode:       { type: String },           // base64 QR image
   createdBy:    { type: mongoose.Schema.Types.ObjectId, ref: "SuperAdmin" },
@@ -24,9 +24,16 @@ const adminSchema = new mongoose.Schema({
   renewalRequested: { type: Boolean, default: false },
   renewalRequestDate: { type: Date },
   renewalMessage: { type: String }, // Admin's message for renewal
+  renewalRequestedBy: { type: mongoose.Schema.Types.ObjectId, ref: "SuperAdmin" }, // Which SuperAdmin requested
   renewalApproved: { type: Boolean, default: false },
   renewalApprovedBy: { type: mongoose.Schema.Types.ObjectId, ref: "MasterAdmin" },
   renewalApprovedDate: { type: Date },
+  
+  // Rejection tracking
+  renewalRejected: { type: Boolean, default: false },
+  renewalRejectedBy: { type: mongoose.Schema.Types.ObjectId, ref: "MasterAdmin" },
+  renewalRejectedDate: { type: Date },
+  renewalRejectionReason: { type: String },
   
   // Payment tracking (for future use when Master Admin approves)
   lastPaymentDate: { type: Date },

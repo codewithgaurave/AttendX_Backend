@@ -22,8 +22,23 @@ exports.createEmployee = async (req, res) => {
     const currentEmployees = await Employee.countDocuments({ adminId: req.user.id, isActive: true });
     if (currentEmployees >= admin.maxEmployees) {
       return res.status(400).json({ 
-        message: `Maximum ${admin.maxEmployees} employees allowed for your ${admin.accountType} account`,
-        limitReached: true
+        message: `Maximum ${admin.maxEmployees} employees allowed for your ${admin.accountType} account. Current: ${currentEmployees}/${admin.maxEmployees}`,
+        limitReached: true,
+        currentCount: currentEmployees,
+        maxAllowed: admin.maxEmployees,
+        accountType: admin.accountType
+      });
+    }
+
+    // Check if employee code already exists
+    const existingEmployee = await Employee.findOne({ 
+      adminId: req.user.id, 
+      employeeCode: req.body.employeeCode 
+    });
+    
+    if (existingEmployee) {
+      return res.status(400).json({ 
+        message: `Employee code "${req.body.employeeCode}" already exists. Please use a different employee code.`
       });
     }
 
@@ -31,6 +46,16 @@ exports.createEmployee = async (req, res) => {
     res.status(201).json(employee);
   } catch (err) {
     console.error('Employee creation error:', err);
+    
+    // Handle MongoDB duplicate key error
+    if (err.code === 11000) {
+      const field = Object.keys(err.keyValue)[1]; // Get the duplicate field
+      const value = err.keyValue[field];
+      return res.status(400).json({ 
+        message: `${field === 'employeeCode' ? 'Employee code' : field} "${value}" already exists. Please use a different value.`
+      });
+    }
+    
     res.status(500).json({ message: err.message });
   }
 };
@@ -112,6 +137,32 @@ exports.updateWorkingHours = async (req, res) => {
     );
     if (!employee) return res.status(404).json({ message: "Employee not found" });
     res.json({ message: "Working hours updated", workingHours: employee.workingHours });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// PATCH /api/admin/employees/:id/deactivate
+exports.deactivateEmployee = async (req, res) => {
+  try {
+    await Employee.findOneAndUpdate(
+      { _id: req.params.id, adminId: req.user.id },
+      { isActive: false }
+    );
+    res.json({ message: "Employee deactivated" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// PATCH /api/admin/employees/:id/activate
+exports.activateEmployee = async (req, res) => {
+  try {
+    await Employee.findOneAndUpdate(
+      { _id: req.params.id, adminId: req.user.id },
+      { isActive: true }
+    );
+    res.json({ message: "Employee activated" });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

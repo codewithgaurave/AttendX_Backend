@@ -5,13 +5,10 @@ const QRCode = require("qrcode");
 // POST /api/superadmin/admins
 exports.createAdmin = async (req, res) => {
   try {
-    const { name, email, password, phone, companyName, accountType } = req.body;
+    const { name, email, password, phone, companyName, validUntil, maxEmployees, maxOffices, validityDays } = req.body;
 
-    // Block any attempt to create paid accounts
-    if (accountType && accountType !== 'demo') {
-      return res.status(403).json({ 
-        message: "SuperAdmins can only create demo accounts. Contact Master Admin for paid accounts."
-      });
+    if (!name || !phone || !password || !companyName) {
+      return res.status(400).json({ message: "Name, phone, password, and company name are required" });
     }
 
     // Check SuperAdmin validity
@@ -32,18 +29,32 @@ exports.createAdmin = async (req, res) => {
       });
     }
 
-    const exists = await Admin.findOne({ email });
-    if (exists) return res.status(400).json({ message: "Email already exists" });
+    const exists = await Admin.findOne({ phone });
+    if (exists) return res.status(400).json({ message: "Phone number already exists" });
 
-    // SuperAdmin can only create demo accounts with fixed settings
+    // Calculate validity date
+    let adminValidUntil;
+    if (validUntil) {
+      adminValidUntil = new Date(validUntil);
+    } else if (validityDays) {
+      adminValidUntil = new Date(Date.now() + parseInt(validityDays) * 24 * 60 * 60 * 1000);
+    } else {
+      adminValidUntil = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // Default 7 days
+    }
+
+    // SuperAdmin can only create Demo accounts but with custom limits
     const admin = await Admin.create({
-      name, email, password, phone, companyName,
+      name, 
+      email: email || null, 
+      password, 
+      phone, 
+      companyName,
       createdBy: req.user.id,
-      accountType: "demo", // Always demo
+      accountType: "demo", // Always demo for SuperAdmin
       validFrom: new Date(),
-      validUntil: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // Always 7 days
-      maxEmployees: 5, // Fixed
-      maxOffices: 1 // Fixed
+      validUntil: adminValidUntil,
+      maxEmployees: parseInt(maxEmployees) || 5,
+      maxOffices: parseInt(maxOffices) || 1
     });
 
     // Generate QR with admin's ID (employee will scan this)
@@ -79,7 +90,10 @@ exports.getAllAdmins = async (req, res) => {
       });
     }
 
-    const admins = await Admin.find({ createdBy: req.user.id }).select("-password").sort({ createdAt: -1 });
+    const admins = await Admin.find({ createdBy: req.user.id })
+      .select("-password")
+      .populate('renewalRejectedBy', 'name email')
+      .sort({ createdAt: -1 });
     
     // Check validity for each admin
     for (let admin of admins) {
@@ -139,9 +153,39 @@ exports.updateAdminSubscription = async (req, res) => {
       });
     }
 
-    // SuperAdmins cannot update admin subscriptions - only Master Admin can
-    return res.status(403).json({ 
-      message: "Only Master Admin can update admin subscriptions. SuperAdmins can only create demo accounts."
+    const { validUntil, maxEmployees, maxOffices } = req.body;
+    
+    const admin = await Admin.findOne({ _id: req.params.id, createdBy: req.user.id });
+    if (!admin) {
+      return res.status(404).json({ message: "Admin not found" });
+    }
+
+    // SuperAdmin can only update validity, employees, and offices - NOT account type
+    if (validUntil) {
+      admin.validUntil = new Date(validUntil);
+      admin.isExpired = new Date() > new Date(validUntil);
+      admin.canScanAttendance = !admin.isExpired;
+    }
+    
+    if (maxEmployees !== undefined) {
+      admin.maxEmployees = Math.max(1, parseInt(maxEmployees));
+    }
+    
+    if (maxOffices !== undefined) {
+      admin.maxOffices = Math.max(1, parseInt(maxOffices));
+    }
+    
+    // Account type remains as is - SuperAdmin cannot change it
+    // Only Master Admin can upgrade to paid accounts
+
+    await admin.save();
+    
+    res.json({ 
+      message: "Admin settings updated successfully",
+      admin: {
+        ...admin.toObject(),
+        password: undefined
+      }
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -240,6 +284,51 @@ exports.toggleAdmin = async (req, res) => {
   }
 };
 
+// POST /api/superadmin/admins/:id/request-paid
+exports.requestPaidAccount = async (req, res) => {
+  try {
+    const superAdmin = await SuperAdmin.findById(req.user.id);
+    if (!superAdmin || !superAdmin.isAccountValid) {
+      return res.status(403).json({ 
+        message: "Your account has expired. Please contact master admin to renew subscription.",
+        expired: true
+      });
+    }
+
+    const admin = await Admin.findOne({ _id: req.params.id, createdBy: req.user.id });
+    if (!admin) {
+      return res.status(404).json({ message: "Admin not found" });
+    }
+
+    if (admin.accountType !== 'demo') {
+      return res.status(400).json({ message: "Only demo accounts can request paid upgrade" });
+    }
+
+    // Mark as renewal requested and reset any previous rejection
+    admin.renewalRequested = true;
+    admin.renewalRequestDate = new Date();
+    admin.renewalRequestedBy = req.user.id; // Track which SuperAdmin made the request
+    admin.renewalMessage = `Paid account upgrade requested by ${superAdmin.name} for ${admin.name} (${admin.companyName})`;
+    
+    // Reset rejection fields if this is a re-request
+    admin.renewalRejected = false;
+    admin.renewalRejectedBy = null;
+    admin.renewalRejectedDate = null;
+    admin.renewalRejectionReason = null;
+    
+    await admin.save();
+    
+    res.json({ 
+      message: "Paid account request sent to Master Admin successfully",
+      admin: {
+        ...admin.toObject(),
+        password: undefined
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
 // GET /api/superadmin/admins/:id/qr
 exports.getAdminQR = async (req, res) => {
   try {

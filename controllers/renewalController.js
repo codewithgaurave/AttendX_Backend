@@ -59,7 +59,10 @@ exports.getPendingRenewals = async (req, res) => {
     const renewalRequests = await Admin.find({
       renewalRequested: true,
       renewalApproved: false
-    }).populate('createdBy', 'name email company').sort({ renewalRequestDate: -1 });
+    })
+    .populate('createdBy', 'name email company')
+    .populate('renewalRequestedBy', 'name email company')
+    .sort({ renewalRequestDate: -1 });
 
     res.json(renewalRequests);
   } catch (err) {
@@ -71,7 +74,13 @@ exports.getPendingRenewals = async (req, res) => {
 exports.approveRenewal = async (req, res) => {
   try {
     const { adminId } = req.params;
-    const { validityDays = 30 } = req.body;
+    const { 
+      validityDays = 30, 
+      maxEmployees, 
+      maxOffices, 
+      paymentAmount, 
+      paymentMethod 
+    } = req.body;
     
     const admin = await Admin.findById(adminId);
     if (!admin) {
@@ -94,11 +103,31 @@ exports.approveRenewal = async (req, res) => {
     admin.renewalApprovedBy = req.user.id;
     admin.lastValidityCheck = new Date();
     
+    // Update limits if provided
+    if (maxEmployees) {
+      admin.maxEmployees = parseInt(maxEmployees);
+    }
+    if (maxOffices) {
+      admin.maxOffices = parseInt(maxOffices);
+    }
+    
+    // Update payment info if provided
+    if (paymentAmount) {
+      admin.paymentAmount = parseFloat(paymentAmount);
+      admin.lastPaymentDate = new Date();
+    }
+    if (paymentMethod) {
+      admin.paymentMethod = paymentMethod;
+    }
+    
     await admin.save();
     
     res.json({ 
-      message: "Renewal approved successfully",
-      newValidUntil: admin.validUntil
+      message: "Renewal approved and upgraded to paid account successfully",
+      newValidUntil: admin.validUntil,
+      accountType: admin.accountType,
+      maxEmployees: admin.maxEmployees,
+      maxOffices: admin.maxOffices
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -116,9 +145,19 @@ exports.rejectRenewal = async (req, res) => {
       return res.status(404).json({ message: "Admin not found" });
     }
 
+    // Reset renewal request fields
     admin.renewalRequested = false;
     admin.renewalApproved = false;
     admin.renewalMessage = null;
+    admin.renewalRequestedBy = null;
+    admin.renewalRequestDate = null;
+    
+    // Add rejection info
+    admin.renewalRejected = true;
+    admin.renewalRejectedDate = new Date();
+    admin.renewalRejectedBy = req.user.id;
+    admin.renewalRejectionReason = reason || "No reason provided";
+    
     await admin.save();
     
     res.json({ 

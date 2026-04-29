@@ -2,9 +2,9 @@ const mongoose = require("mongoose");
 
 const masterAdminSchema = new mongoose.Schema({
   name: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
+  email: { type: String },                    // Optional now
+  phone: { type: String, required: true, unique: true }, // Mandatory + unique
   password: { type: String, required: true },
-  phone: { type: String },
   company: { type: String },
   isActive: { type: Boolean, default: true },
   

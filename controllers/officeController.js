@@ -35,10 +35,11 @@ exports.createOffice = async (req, res) => {
     
     if (currentOffices >= admin.maxOffices) {
       return res.status(400).json({ 
-        message: `Maximum ${admin.maxOffices} offices allowed for your ${admin.accountType} account`,
+        message: `Maximum ${admin.maxOffices} offices allowed for your ${admin.accountType} account. Current: ${currentOffices}/${admin.maxOffices}`,
         limitReached: true,
-        currentOffices,
-        maxOffices: admin.maxOffices
+        currentCount: currentOffices,
+        maxAllowed: admin.maxOffices,
+        accountType: admin.accountType
       });
     }
 

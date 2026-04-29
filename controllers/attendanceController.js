@@ -118,6 +118,7 @@ exports.smartAttendance = async (req, res) => {
 
     const employee = await Employee.findById(employeeId).populate("officeId");
     if (!employee) return res.status(404).json({ message: "Employee not found" });
+    if (!employee.isActive) return res.status(403).json({ message: "Employee is deactivated and cannot mark attendance" });
 
     const office = employee.officeId;
     const geo = await checkGeofence(lat, long, office.lat, office.long, office.radius);
@@ -235,6 +236,7 @@ exports.checkIn = async (req, res) => {
 
     const employee = await Employee.findById(employeeId).populate("officeId");
     if (!employee) return res.status(404).json({ message: "Employee not found" });
+    if (!employee.isActive) return res.status(403).json({ message: "Employee is deactivated and cannot mark attendance" });
 
     const office = employee.officeId;
     const geo = await checkGeofence(lat, long, office.lat, office.long, office.radius);

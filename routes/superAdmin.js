@@ -10,6 +10,7 @@ const {
   getSubscription,
   updateAdminSubscription,
   getAdminDetails,
+  requestPaidAccount,
 } = require("../controllers/superAdminController");
 
 router.use(auth, role("superadmin"));
@@ -21,6 +22,7 @@ router.get("/admins/:id/details", getAdminDetails);
 router.put("/admins/:id", updateAdmin);
 router.put("/admins/:id/subscription", updateAdminSubscription);
 router.patch("/admins/:id/toggle", toggleAdmin);
+router.post("/admins/:id/request-paid", requestPaidAccount);
 router.get("/admins/:id/qr", getAdminQR);
 
 module.exports = router;
