@@ -12,6 +12,7 @@ app.use(cors({
     'http://localhost:5173',  // Admin App
     'http://localhost:5174',  // SuperAdmin App
     'http://localhost:5175',  // Master App
+    'http://localhost:5176',  // Additional port for SuperAdmin App
     'https://attend-x-frontend.vercel.app'
   ], 
   credentials: true 
@@ -20,6 +21,10 @@ app.use(express.json({ limit: "10mb" })); // 10mb for base64 selfie/QR
 app.use("/uploads", express.static("uploads"));
 
 // Routes
+app.get('/api/test-endpoint', (req, res) => {
+  res.json({ message: 'Server is working!', timestamp: new Date() });
+});
+
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api/master", require("./routes/masterAdmin"));
 app.use("/api/superadmin", require("./routes/superAdmin"));

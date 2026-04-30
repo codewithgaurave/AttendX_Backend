@@ -17,7 +17,7 @@ exports.login = async (req, res) => {
     if (role === "masteradmin") {
       user = await MasterAdmin.findOne({ email, isActive: true });
     } else if (role === "superadmin") {
-      user = await SuperAdmin.findOne({ email });
+      user = await SuperAdmin.findOne({ phone });
       
       // Check if SuperAdmin account is valid
       if (user && !user.isAccountValid) {
