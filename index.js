@@ -17,7 +17,10 @@ app.use(cors({
     'https://attend-x-admin-panel-delta.vercel.app',
     'https://attend-x-master-admin-panel.vercel.app',
     'https://attendx-super-admin-panel.vercel.app',
-    'https://www.inaamify.com'
+    'https://www.inaamify.com',
+    'https://masteradmin.attenzo.in',
+    'https://superadmin.attenzo.in',
+    'https://admin.attenzo.in'
   ], 
   credentials: true 
 }));
