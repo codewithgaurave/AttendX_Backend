@@ -13,7 +13,11 @@ app.use(cors({
     'http://localhost:5174',  // SuperAdmin App
     'http://localhost:5175',  // Master App
     'http://localhost:5176',  // Additional port for SuperAdmin App
-    'https://attend-x-frontend.vercel.app'
+    'https://attend-x-frontend.vercel.app',
+    'https://attend-x-admin-panel-delta.vercel.app',
+    'https://attend-x-master-admin-panel.vercel.app',
+    'https://attendx-super-admin-panel.vercel.app',
+    'https://www.inaamify.com'
   ], 
   credentials: true 
 }));
