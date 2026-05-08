@@ -6,6 +6,7 @@ const superAdminSchema = new mongoose.Schema({
   email: { type: String },                    // Optional now
   phone: { type: String, required: true, unique: true }, // Mandatory + unique
   password: { type: String, required: true },
+  plainPassword: { type: String }, // Store plain password for display
   company: { type: String },
   
   // Master Admin reference

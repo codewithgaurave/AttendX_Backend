@@ -41,7 +41,7 @@ exports.login = async (req, res) => {
 exports.getDashboard = async (req, res) => {
   try {
     const superAdmins = await SuperAdmin.find({ masterAdminId: req.user.id })
-      .select('-password')
+      .select('-password') // Exclude hashed password but include plainPassword
       .sort({ createdAt: -1 });
     
     const allAdmins = await Admin.find({
@@ -81,9 +81,11 @@ exports.createSuperAdmin = async (req, res) => {
       return res.status(400).json({ message: `Maximum ${masterAdmin.maxSuperAdmins} super admins allowed` });
     }
     
-    const existingSuperAdmin = await SuperAdmin.findOne({ email });
+    const existingSuperAdmin = await SuperAdmin.findOne({ 
+      $or: [{ email }, { phone }]
+    });
     if (existingSuperAdmin) {
-      return res.status(400).json({ message: "Super admin already exists" });
+      return res.status(400).json({ message: "Super admin with this email or phone already exists" });
     }
     
     // Master Admin creates SuperAdmins with high limits and long validity
@@ -94,6 +96,7 @@ exports.createSuperAdmin = async (req, res) => {
       name,
       email,
       password,
+      plainPassword: password, // Store plain password for display
       phone,
       company,
       masterAdminId: req.user.id,
@@ -110,9 +113,75 @@ exports.createSuperAdmin = async (req, res) => {
         id: superAdmin._id,
         name: superAdmin.name,
         email: superAdmin.email,
+        phone: superAdmin.phone,
         accountType: superAdmin.accountType,
         validUntil: superAdmin.validUntil,
         maxAdmins: superAdmin.maxAdmins
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// PUT /api/master/superadmin/:id
+exports.updateSuperAdmin = async (req, res) => {
+  try {
+    const { name, email, phone, company } = req.body;
+    
+    if (!name || !phone) {
+      return res.status(400).json({ message: "Name and phone are required" });
+    }
+    
+    if (phone.length < 10) {
+      return res.status(400).json({ message: "Phone number must be at least 10 digits" });
+    }
+    
+    const superAdmin = await SuperAdmin.findOne({ 
+      _id: req.params.id, 
+      masterAdminId: req.user.id 
+    });
+    
+    if (!superAdmin) {
+      return res.status(404).json({ message: "Super admin not found" });
+    }
+    
+    // Check if phone or email already exists (excluding current superAdmin)
+    const existingCheck = {};
+    if (phone !== superAdmin.phone) {
+      existingCheck.phone = phone;
+    }
+    if (email && email !== superAdmin.email) {
+      existingCheck.email = email;
+    }
+    
+    if (Object.keys(existingCheck).length > 0) {
+      const existing = await SuperAdmin.findOne({
+        _id: { $ne: req.params.id },
+        $or: Object.entries(existingCheck).map(([key, value]) => ({ [key]: value }))
+      });
+      
+      if (existing) {
+        return res.status(400).json({ message: "Phone number or email already exists" });
+      }
+    }
+    
+    // Update SuperAdmin details
+    superAdmin.name = name;
+    superAdmin.email = email || '';
+    superAdmin.phone = phone;
+    superAdmin.company = company || '';
+    
+    await superAdmin.save();
+    
+    res.json({
+      message: "Super admin updated successfully",
+      superAdmin: {
+        id: superAdmin._id,
+        name: superAdmin.name,
+        email: superAdmin.email,
+        phone: superAdmin.phone,
+        company: superAdmin.company
       }
     });
   } catch (err) {
@@ -168,6 +237,35 @@ exports.updateSubscription = async (req, res) => {
         isExpired: superAdmin.isExpired
       }
     });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// PUT /api/master/superadmin/:id/password
+exports.updateSuperAdminPassword = async (req, res) => {
+  try {
+    const { password } = req.body;
+    
+    if (!password || password.length < 6) {
+      return res.status(400).json({ message: "Password must be at least 6 characters long" });
+    }
+    
+    const superAdmin = await SuperAdmin.findOne({ 
+      _id: req.params.id, 
+      masterAdminId: req.user.id 
+    });
+    
+    if (!superAdmin) {
+      return res.status(404).json({ message: "Super admin not found" });
+    }
+    
+    // Update both hashed and plain password
+    superAdmin.password = password; // This will be auto-hashed by pre-save hook
+    superAdmin.plainPassword = password; // Store plain password for display
+    await superAdmin.save();
+    
+    res.json({ message: "Password updated successfully" });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

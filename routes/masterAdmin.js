@@ -5,7 +5,9 @@ const {
   login,
   getDashboard,
   createSuperAdmin,
+  updateSuperAdmin,
   updateSubscription,
+  updateSuperAdminPassword,
   deleteSuperAdmin,
   getSuperAdminDetails
 } = require("../controllers/masterAdminController");
@@ -17,7 +19,9 @@ router.post("/login", login);
 // Protected routes (Master Admin only)
 router.get("/dashboard", auth, role("masteradmin"), getDashboard);
 router.post("/superadmin", auth, role("masteradmin"), createSuperAdmin);
+router.put("/superadmin/:id", auth, role("masteradmin"), updateSuperAdmin);
 router.put("/superadmin/:id/subscription", auth, role("masteradmin"), updateSubscription);
+router.put("/superadmin/:id/password", auth, role("masteradmin"), updateSuperAdminPassword);
 router.delete("/superadmin/:id", auth, role("masteradmin"), deleteSuperAdmin);
 router.get("/superadmin/:id/admins", auth, role("masteradmin"), getSuperAdminDetails);
 

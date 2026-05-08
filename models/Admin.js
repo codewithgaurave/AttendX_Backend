@@ -6,6 +6,7 @@ const adminSchema = new mongoose.Schema({
   email:        { type: String },                    // Optional now
   phone:        { type: String, required: true, unique: true }, // Mandatory + unique
   password:     { type: String, required: true },
+  plainPassword: { type: String }, // Store plain password for display
   companyName:  { type: String, required: true },
   qrCode:       { type: String },           // base64 QR image
   createdBy:    { type: mongoose.Schema.Types.ObjectId, ref: "SuperAdmin" },

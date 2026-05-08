@@ -87,7 +87,7 @@ exports.getEmployeesByAdmin = async (req, res) => {
     const employees = await Employee.find({
       adminId: req.params.adminId,
       isActive: true,
-    }).select("name employeeCode designation profilePhoto officeId");
+    }).select("name employeeCode designation profilePhoto officeId selfieRequired");
     res.json(employees);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -97,7 +97,7 @@ exports.getEmployeesByAdmin = async (req, res) => {
 // POST /api/attendance/smart - Smart attendance (auto punch in/out)
 exports.smartAttendance = async (req, res) => {
   try {
-    const { employeeId, adminId, lat, long } = req.body;
+    const { employeeId, adminId, lat, long, selfieImage } = req.body;
 
     if (!lat || !long) return res.status(400).json({ message: "GPS location required" });
 
@@ -119,6 +119,14 @@ exports.smartAttendance = async (req, res) => {
     const employee = await Employee.findById(employeeId).populate("officeId");
     if (!employee) return res.status(404).json({ message: "Employee not found" });
     if (!employee.isActive) return res.status(403).json({ message: "Employee is deactivated and cannot mark attendance" });
+
+    // Check if selfie is required but not provided
+    if (employee.selfieRequired && !selfieImage) {
+      return res.status(400).json({ 
+        message: "Selfie is required for attendance",
+        selfieRequired: true
+      });
+    }
 
     const office = employee.officeId;
     const geo = await checkGeofence(lat, long, office.lat, office.long, office.radius);
@@ -155,20 +163,27 @@ exports.smartAttendance = async (req, res) => {
       const scheduledStart = timeToMinutes(employee.workingHours?.startTime || "09:00");
       const lateBy = actualStart - scheduledStart;
 
+      const checkInData = {
+        time: now,
+        lat: geo.snappedLat,
+        long: geo.snappedLong,
+        address: geo.address,
+        withinRadius: geo.withinRadius,
+        distance: geo.distance,
+      };
+      
+      // Add selfie if provided
+      if (selfieImage) {
+        checkInData.selfie = selfieImage;
+      }
+
       const attendance = await Attendance.findOneAndUpdate(
         { employeeId, date },
         {
           adminId,
           officeId: office._id,
           date,
-          checkIn: {
-            time: now,
-            lat: geo.snappedLat,
-            long: geo.snappedLong,
-            address: geo.address,
-            withinRadius: geo.withinRadius,
-            distance: geo.distance,
-          },
+          checkIn: checkInData,
         },
         { upsert: true, new: true }
       );
@@ -186,7 +201,7 @@ exports.smartAttendance = async (req, res) => {
       });
     } else {
       // Punch Out Logic
-      existing.checkOut = {
+      const checkOutData = {
         time: now,
         lat: geo.snappedLat,
         long: geo.snappedLong,
@@ -194,6 +209,13 @@ exports.smartAttendance = async (req, res) => {
         withinRadius: geo.withinRadius,
         distance: geo.distance,
       };
+      
+      // Add selfie if provided
+      if (selfieImage) {
+        checkOutData.selfie = selfieImage;
+      }
+      
+      existing.checkOut = checkOutData;
 
       // Calculate analysis and update status
       const analysis = analyzeAttendance({ ...existing.toObject(), checkOut: { time: now } }, employee);

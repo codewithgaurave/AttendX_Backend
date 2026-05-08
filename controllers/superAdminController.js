@@ -2,6 +2,72 @@ const Admin = require("../models/Admin");
 const SuperAdmin = require("../models/SuperAdmin");
 const QRCode = require("qrcode");
 
+// PATCH /api/superadmin/profile
+exports.updateProfile = async (req, res) => {
+  try {
+    const { name, email, phone, company } = req.body;
+    
+    if (!name || !phone) {
+      return res.status(400).json({ message: "Name and phone are required" });
+    }
+    
+    if (phone.length < 10) {
+      return res.status(400).json({ message: "Phone number must be at least 10 digits" });
+    }
+    
+    if (email && !email.includes('@')) {
+      return res.status(400).json({ message: "Please enter a valid email address" });
+    }
+    
+    const superAdmin = await SuperAdmin.findById(req.user.id);
+    if (!superAdmin) {
+      return res.status(404).json({ message: "Super admin not found" });
+    }
+    
+    // Check if phone or email already exists (excluding current superAdmin)
+    const existingCheck = {};
+    if (phone !== superAdmin.phone) {
+      existingCheck.phone = phone;
+    }
+    if (email && email !== superAdmin.email) {
+      existingCheck.email = email;
+    }
+    
+    if (Object.keys(existingCheck).length > 0) {
+      const existing = await SuperAdmin.findOne({
+        _id: { $ne: req.user.id },
+        $or: Object.entries(existingCheck).map(([key, value]) => ({ [key]: value }))
+      });
+      
+      if (existing) {
+        return res.status(400).json({ message: "Phone number or email already exists" });
+      }
+    }
+    
+    // Update SuperAdmin profile
+    superAdmin.name = name;
+    superAdmin.email = email || '';
+    superAdmin.phone = phone;
+    superAdmin.company = company || '';
+    
+    await superAdmin.save();
+    
+    res.json({
+      message: "Profile updated successfully",
+      user: {
+        id: superAdmin._id,
+        name: superAdmin.name,
+        email: superAdmin.email,
+        phone: superAdmin.phone,
+        company: superAdmin.company,
+        role: 'superadmin'
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 // POST /api/superadmin/admins
 exports.createAdmin = async (req, res) => {
   try {
@@ -47,6 +113,7 @@ exports.createAdmin = async (req, res) => {
       name, 
       email: email || null, 
       password, 
+      plainPassword: password, // Store plain password for display
       phone, 
       companyName,
       createdBy: req.user.id,
@@ -344,6 +411,49 @@ exports.requestPaidAccount = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+// PUT /api/superadmin/admins/:id/password
+exports.changeAdminPassword = async (req, res) => {
+  try {
+    const superAdmin = await SuperAdmin.findById(req.user.id);
+    if (!superAdmin || !superAdmin.isAccountValid) {
+      return res.status(403).json({ 
+        message: "Your account has expired. Please contact master admin to renew subscription.",
+        expired: true
+      });
+    }
+
+    const { newPassword } = req.body;
+    
+    if (!newPassword) {
+      return res.status(400).json({ message: "New password is required" });
+    }
+    
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: "Password must be at least 6 characters long" });
+    }
+    
+    const admin = await Admin.findOne({ _id: req.params.id, createdBy: req.user.id });
+    if (!admin) {
+      return res.status(404).json({ message: "Admin not found" });
+    }
+
+    // Update password and plain password
+    admin.password = newPassword;
+    admin.plainPassword = newPassword;
+    await admin.save();
+    
+    res.json({ 
+      message: "Password changed successfully",
+      admin: {
+        ...admin.toObject(),
+        password: undefined
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 // GET /api/superadmin/admins/:id/qr
 exports.getAdminQR = async (req, res) => {
   try {
