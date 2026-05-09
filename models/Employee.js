@@ -15,7 +15,7 @@ const employeeSchema = new mongoose.Schema({
   address:        { type: String },
   emergencyContact: { type: String },
   bloodGroup:     { type: String },
-  gender:         { type: String, enum: ["Male", "Female", "Other"] },
+  gender:         { type: String, enum: ["Male", "Female", "Other", ""], default: "" },
   dob:            { type: Date },
   profilePhoto:   { type: String },
 
