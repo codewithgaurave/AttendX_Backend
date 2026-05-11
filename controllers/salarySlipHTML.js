@@ -115,7 +115,7 @@ exports.downloadSalarySlipHTML = async (req, res) => {
     <body>
       <div class="container">
         <div class="header">
-          <div class="company-name">ATTENDX</div>
+          <div class="company-name">ATTENZO</div>
           <div class="document-title">Salary Slip</div>
         </div>
         
@@ -149,7 +149,7 @@ exports.downloadSalarySlipHTML = async (req, res) => {
         <div class="footer">
           <p><strong>Note:</strong> This is a system-generated salary slip.</p>
           <p>Generated on: ${new Date().toLocaleDateString('en-IN')}</p>
-          <p><strong>AttendX Attendance Management System</strong></p>
+          <p><strong>AttenZo Attendance Management System</strong></p>
         </div>
       </div>
       

@@ -21,10 +21,10 @@ const seedMasterAdmin = async () => {
     
     const masterAdmin = new MasterAdmin({
       name: "Master Administrator",
-      email: "master@attendx.com",
+      email: "master@attenzo.com",
       password: hashedPassword,
       phone: "+91 9999999999",
-      company: "AttendX Systems",
+      company: "AttenZo Systems",
       maxSuperAdmins: 50,
       maxAdminsPerSuperAdmin: 100
     });
@@ -32,9 +32,9 @@ const seedMasterAdmin = async () => {
     await masterAdmin.save();
     
     console.log("✅ Master Admin created successfully!");
-    console.log("📧 Email: master@attendx.com");
+    console.log("📧 Email: master@attenzo.com");
     console.log("🔑 Password: master123");
-    console.log("🏢 Company: AttendX Systems");
+    console.log("🏢 Company: AttenZo Systems");
     console.log("👥 Max Super Admins: 50");
     console.log("🎯 Max Admins per Super Admin: 100");
     
