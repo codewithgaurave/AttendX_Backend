@@ -578,13 +578,13 @@ exports.markAttendance = async (req, res) => {
         date,
         status,
         manuallyMarked: true,
-        markedBy: req.user.id,
+        markedBy: req.user?.id || null,
         markedAt: new Date()
       });
     } else {
       attendance.status = status;
       attendance.manuallyMarked = true;
-      attendance.markedBy = req.user.id;
+      attendance.markedBy = req.user?.id || null;
       attendance.markedAt = new Date();
     }
 
@@ -597,32 +597,39 @@ exports.markAttendance = async (req, res) => {
         const [startHour, startMin] = workingHours.startTime.split(':').map(Number);
         const checkInTime = new Date(dateObj);
         checkInTime.setHours(startHour, startMin, 0, 0);
-        
-        attendance.checkIn = {
-          time: checkInTime,
-          manuallyMarked: true
-        };
+        attendance.checkIn = { time: checkInTime, manuallyMarked: true };
       }
       
       if (status === 'present' && !attendance.checkOut?.time) {
         const [endHour, endMin] = workingHours.endTime.split(':').map(Number);
         const checkOutTime = new Date(dateObj);
         checkOutTime.setHours(endHour, endMin, 0, 0);
-        
-        attendance.checkOut = {
-          time: checkOutTime,
-          manuallyMarked: true
-        };
+        attendance.checkOut = { time: checkOutTime, manuallyMarked: true };
       }
+
+      // half-day pe checkOut clear karo taaki analyzeAttendance override na kare
+      if (status === 'half-day' && attendance.checkOut?.time) {
+        attendance.checkOut = undefined;
+      }
+    } else if (status === 'absent') {
+      // For absent status, clear check-in/out times
+      attendance.checkIn = undefined;
+      attendance.checkOut = undefined;
     }
 
+    // Ensure manually set status is not overridden
+    attendance.status = status;
     await attendance.save();
+
+    console.log(`Attendance marked as ${status} for employee ${employeeId} on ${date}`);
 
     res.json({
       message: `Attendance marked as ${status}`,
-      attendance
+      attendance,
+      success: true
     });
   } catch (err) {
+    console.error('Mark attendance error:', err);
     res.status(500).json({ message: err.message });
   }
 };
