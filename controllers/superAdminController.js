@@ -382,8 +382,8 @@ exports.requestPaidAccount = async (req, res) => {
       return res.status(404).json({ message: "Admin not found" });
     }
 
-    if (admin.accountType !== 'demo') {
-      return res.status(400).json({ message: "Only demo accounts can request paid upgrade" });
+    if (admin.accountType !== 'demo' && admin.renewalRequested) {
+      return res.status(400).json({ message: "A renewal request is already pending" });
     }
 
     // Mark as renewal requested and reset any previous rejection
