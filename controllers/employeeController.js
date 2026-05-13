@@ -171,11 +171,9 @@ exports.activateEmployee = async (req, res) => {
 // DELETE /api/admin/employees/:id
 exports.deleteEmployee = async (req, res) => {
   try {
-    await Employee.findOneAndUpdate(
-      { _id: req.params.id, adminId: req.user.id },
-      { isActive: false }
-    );
-    res.json({ message: "Employee deactivated" });
+    const employee = await Employee.findOneAndDelete({ _id: req.params.id, adminId: req.user.id });
+    if (!employee) return res.status(404).json({ message: "Employee not found" });
+    res.json({ message: "Employee deleted" });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

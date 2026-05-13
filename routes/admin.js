@@ -10,6 +10,18 @@ const { getSuperAdminContact } = require("../controllers/employeeController");
 
 router.use(auth, role("admin"));
 
+// Admin profile
+router.get("/me", async (req, res) => {
+  try {
+    const Admin = require("../models/Admin");
+    const admin = await Admin.findById(req.user.id).select('name companyName phone email');
+    if (!admin) return res.status(404).json({ message: "Admin not found" });
+    res.json(admin);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // Office
 router.post("/offices/geocode", geocodeOfficeAddress);
 router.delete("/offices/clear-all", clearAllOffices);

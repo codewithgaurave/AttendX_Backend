@@ -3,6 +3,7 @@ const pdf = require('html-pdf');
 const Employee  = require("../models/Employee");
 const Attendance = require("../models/Attendance");
 const Holiday   = require("../models/Holiday");
+const Admin     = require("../models/Admin");
 
 // Helper: convert number to words (Indian format)
 const numberToWords = (num) => {
@@ -26,8 +27,229 @@ const numberToWords = (num) => {
 
 // Helper: generate salary slip HTML
 const generateSalarySlipHTML = (data) => {
-  const { employee, month, monthLabel, attendance, salary, totalHoursWorked, holidays, netSalary } = data;
+  const { employee, companyName, month, monthLabel, attendance, salary, totalHoursWorked, holidays, netSalary } = data;
   const amountInWords = numberToWords(netSalary);
+  
+  return `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+          background: white;
+          color: #333;
+          font-size: 12px;
+        }
+        .container { 
+          width: 100%;
+          background: white;
+        }
+        .header {
+          background: #1a1612;
+          color: white;
+          padding: 16px 24px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          border-bottom: 3px solid #c84b2f;
+        }
+        .company-name {
+          font-size: 20px;
+          font-weight: 800;
+          letter-spacing: 2px;
+        }
+        .document-title {
+          font-size: 11px;
+          color: #aaa;
+          letter-spacing: 3px;
+          text-transform: uppercase;
+        }
+        .content { padding: 16px 24px; }
+        .info-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 16px;
+          margin-bottom: 14px;
+          padding-bottom: 14px;
+          border-bottom: 1px solid #eee;
+        }
+        .info-group h3 {
+          font-size: 9px;
+          color: #999;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          margin-bottom: 8px;
+          font-weight: 700;
+          border-bottom: 1.5px solid #c84b2f;
+          padding-bottom: 4px;
+        }
+        .info-row {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 5px;
+          font-size: 11px;
+        }
+        .info-row .label { color: #666; }
+        .info-row .value { font-weight: 600; color: #1a1612; }
+        .section-title {
+          font-size: 9px;
+          color: #999;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          margin-bottom: 8px;
+          font-weight: 700;
+          border-bottom: 1.5px solid #c84b2f;
+          padding-bottom: 4px;
+        }
+        .attendance-grid {
+          display: grid;
+          grid-template-columns: repeat(7, 1fr);
+          gap: 6px;
+          margin-bottom: 14px;
+        }
+        .att-card {
+          background: #f9f7f4;
+          border: 1px solid #e8e0d8;
+          border-radius: 4px;
+          padding: 8px 4px;
+          text-align: center;
+        }
+        .att-card .label {
+          font-size: 8px;
+          color: #999;
+          text-transform: uppercase;
+          margin-bottom: 4px;
+        }
+        .att-card .value {
+          font-size: 18px;
+          font-weight: 700;
+          color: #1a1612;
+        }
+        .salary-table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-bottom: 10px;
+        }
+        .salary-table th {
+          background: #f0ebe5;
+          padding: 7px 10px;
+          text-align: left;
+          font-size: 9px;
+          font-weight: 700;
+          color: #666;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          border-bottom: 1.5px solid #d8d0c0;
+        }
+        .salary-table td {
+          padding: 7px 10px;
+          border-bottom: 1px solid #eee;
+          font-size: 11px;
+        }
+        .salary-table tr:nth-child(even) { background: #faf8f5; }
+        .salary-table .amount { text-align: right; font-weight: 600; color: #1a1612; }
+        .salary-table .deduction { color: #c84b2f; }
+        .salary-table .highlight { background: #1a1612 !important; }
+        .salary-table .highlight td { color: white; font-weight: 700; }
+        .salary-table .highlight .amount { color: #c84b2f; }
+        .amount-words {
+          background: #f9f7f4;
+          border-left: 3px solid #c84b2f;
+          padding: 8px 12px;
+          margin-bottom: 12px;
+          border-radius: 2px;
+        }
+        .amount-words .label { font-size: 9px; color: #999; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 3px; }
+        .amount-words .value { font-size: 11px; font-weight: 600; color: #1a1612; }
+        .footer {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 20px;
+          margin-top: 12px;
+          padding-top: 10px;
+          border-top: 1px solid #eee;
+        }
+        .footer-note { font-size: 9px; color: #999; line-height: 1.5; }
+        .signature-box { text-align: right; }
+        .signature-box .label { font-size: 9px; color: #999; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 24px; display: block; }
+        .signature-box .sign-line { border-top: 1px solid #333; padding-top: 5px; font-size: 10px; font-weight: 600; color: #1a1612; }
+        .powered-by { text-align: center; margin-top: 10px; font-size: 9px; color: #bbb; letter-spacing: 1px; }
+        @media print {
+          body { background: white; }
+          .container { box-shadow: none; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <div>
+            <div class="company-name">${data.companyName.toUpperCase()}</div>
+            <div class="document-title">Salary Slip</div>
+          </div>
+          <div style="text-align:right; color:#aaa; font-size:11px;">
+            <div>${monthLabel}</div>
+            <div style="font-size:9px; margin-top:3px;">Generated: ${new Date().toLocaleDateString('en-IN')}</div>
+          </div>
+        </div>
+        <div class="content">
+          <div class="info-grid">
+            <div class="info-group">
+              <h3>Employee Information</h3>
+              <div class="info-row"><span class="label">Name</span><span class="value">${employee.name.toUpperCase()}</span></div>
+              <div class="info-row"><span class="label">Employee Code</span><span class="value">${employee.employeeCode}</span></div>
+              <div class="info-row"><span class="label">Designation</span><span class="value">${employee.designation}</span></div>
+              <div class="info-row"><span class="label">Department</span><span class="value">${employee.department || 'N/A'}</span></div>
+            </div>
+            <div class="info-group">
+              <h3>Salary Period</h3>
+              <div class="info-row"><span class="label">Month</span><span class="value">${monthLabel}</span></div>
+              <div class="info-row"><span class="label">Monthly CTC</span><span class="value">&#8377; ${employee.monthlySalary.toLocaleString('en-IN')}</span></div>
+            </div>
+          </div>
+          <div class="section-title">Attendance Summary</div>
+          <div class="attendance-grid">
+            <div class="att-card"><div class="label">Working Days</div><div class="value">${attendance.totalWorkingDays}</div></div>
+            <div class="att-card"><div class="label">Present</div><div class="value">${attendance.present}</div></div>
+            <div class="att-card"><div class="label">Half Days</div><div class="value">${attendance.halfDay}</div></div>
+            <div class="att-card"><div class="label">Absent</div><div class="value">${attendance.absent}</div></div>
+            <div class="att-card"><div class="label">Weekly Offs</div><div class="value">${attendance.weeklyOffs}</div></div>
+            <div class="att-card"><div class="label">Holidays</div><div class="value">${attendance.holidayCount}</div></div>
+            <div class="att-card"><div class="label">Hours Worked</div><div class="value">${totalHoursWorked.toFixed(1)}h</div></div>
+          </div>
+          <div class="section-title">Salary Breakdown</div>
+          <table class="salary-table">
+            <thead><tr><th>Particulars</th><th style="text-align:right;">Amount</th></tr></thead>
+            <tbody>
+              <tr><td>Monthly CTC</td><td class="amount">&#8377; ${employee.monthlySalary.toLocaleString('en-IN')}</td></tr>
+              <tr><td>Per Day Salary</td><td class="amount">&#8377; ${salary.perDaySalary.toFixed(2)}</td></tr>
+              <tr><td>Earned Days (Present + Half Day)</td><td class="amount">${salary.earnedDays}</td></tr>
+              <tr><td>Gross Salary</td><td class="amount">&#8377; ${salary.grossSalary.toLocaleString('en-IN')}</td></tr>
+              <tr><td class="deduction">Deduction (Absent Days)</td><td class="amount deduction">- &#8377; ${salary.deduction.toLocaleString('en-IN')}</td></tr>
+              <tr class="highlight"><td>NET SALARY</td><td class="amount">&#8377; ${netSalary.toLocaleString('en-IN')}</td></tr>
+            </tbody>
+          </table>
+          <div class="amount-words">
+            <div class="label">Amount in Words</div>
+            <div class="value">RUPEES ${amountInWords.toUpperCase()}</div>
+          </div>
+          <div class="footer">
+            <div class="footer-note"><strong>Note:</strong> This is a system-generated salary slip. For any discrepancies, please contact HR.</div>
+            <div class="signature-box">
+              <span class="label">Authorized By</span>
+              <div class="sign-line">HR Manager</div>
+            </div>
+          </div>
+          <div class="powered-by">Powered by <strong style="color:#c84b2f;">AttenZo</strong> &mdash; Attendance Management System</div>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+};
   
   return `
     <!DOCTYPE html>
@@ -247,7 +469,7 @@ const generateSalarySlipHTML = (data) => {
       <div class="container">
         <!-- Header -->
         <div class="header">
-          <div class="company-name">ATTEND<span class="x">X</span></div>
+          <div class="company-name">${data.companyName.toUpperCase()}</div>
           <div class="document-title">Salary Slip</div>
         </div>
         
@@ -367,12 +589,15 @@ const generateSalarySlipHTML = (data) => {
           <div class="footer">
             <div class="footer-note">
               <strong>Note:</strong> This is a system-generated salary slip. For any discrepancies, please contact HR.<br><br>
-              <strong>E. & O. E.</strong> — Subject to Lucknow Jurisdiction.
+              Generated on: ${new Date().toLocaleDateString('en-IN')}
             </div>
             <div class="signature-box">
               <span class="label">Authorized By</span>
               <div class="sign-line">HR Manager</div>
             </div>
+          </div>
+          <div style="text-align:center; margin-top:24px; padding-top:14px; border-top:1px solid #eee; font-size:11px; color:#bbb; letter-spacing:1px;">
+            Powered by <strong style="color:#c84b2f;">AttenZo</strong> &mdash; Attendance Management System
           </div>
         </div>
       </div>
@@ -480,8 +705,10 @@ exports.downloadSalarySlip = async (req, res) => {
     }
 
     console.log('Finding employee...');
-    const employee = await Employee.findOne({ _id: req.params.employeeId, adminId: req.user.id })
-      .populate("officeId", "name");
+    const [employee, admin] = await Promise.all([
+      Employee.findOne({ _id: req.params.employeeId, adminId: req.user.id }).populate("officeId", "name"),
+      Admin.findById(req.user.id).select('companyName')
+    ]);
     
     if (!employee) {
       console.log('ERROR: Employee not found');
@@ -539,6 +766,7 @@ exports.downloadSalarySlip = async (req, res) => {
         department: employee.department || 'N/A', 
         monthlySalary: employee.monthlySalary 
       },
+      companyName: admin?.companyName || 'Company',
       month, monthLabel,
       attendance: { totalWorkingDays, present, halfDay, absent, weeklyOffs, holidayCount },
       salary: { perDaySalary: parseFloat(perDay.toFixed(2)), earnedDays: earned, deductedDays: deducted, grossSalary: gross, deduction },
@@ -551,11 +779,12 @@ exports.downloadSalarySlip = async (req, res) => {
     const options = {
       format: 'A4',
       border: {
-        top: "0.5in",
-        right: "0.5in",
-        bottom: "0.5in",
-        left: "0.5in"
-      }
+        top: "0.3in",
+        right: "0.4in",
+        bottom: "0.3in",
+        left: "0.4in"
+      },
+      zoomFactor: '0.85'
     };
 
     pdf.create(htmlContent, options).toBuffer((err, buffer) => {
