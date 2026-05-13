@@ -57,8 +57,7 @@ exports.getRenewalStatus = async (req, res) => {
 exports.getPendingRenewals = async (req, res) => {
   try {
     const renewalRequests = await Admin.find({
-      renewalRequested: true,
-      renewalApproved: false
+      renewalRequested: true
     })
     .populate('createdBy', 'name email company')
     .populate('renewalRequestedBy', 'name email company')
@@ -107,8 +106,8 @@ exports.approveRenewal = async (req, res) => {
       return res.status(400).json({ message: "No renewal request found" });
     }
 
-    // Convert to paid account and extend validity
-    admin.accountType = 'paid';
+    // Extend validity (keep paid if already paid, else upgrade)
+    if (admin.accountType !== 'paid') admin.accountType = 'paid';
     admin.validUntil = new Date(Date.now() + validityDays * 24 * 60 * 60 * 1000);
     admin.isExpired = false;
     admin.canScanAttendance = true;
