@@ -27,12 +27,22 @@ const analyzeAttendance = (record, employee) => {
   const scheduledEnd = timeToMinutes(wh.endTime);
   const scheduledHours = (scheduledEnd - scheduledStart) / 60;
 
+  // Helper to format time in IST (India timezone)
+  const formatTimeIST = (date) => {
+    if (!date) return null;
+    // Convert to IST by adding 5 hours 30 minutes
+    const istTime = new Date(date.getTime() + (5.5 * 60 * 60 * 1000));
+    const hours = istTime.getUTCHours().toString().padStart(2, '0');
+    const minutes = istTime.getUTCMinutes().toString().padStart(2, '0');
+    return `${hours}:${minutes}`;
+  };
+
   let analysis = {
     scheduledStart: wh.startTime,
     scheduledEnd: wh.endTime,
     scheduledHours: `${scheduledHours}h`,
-    checkInTime: ci ? ci.toTimeString().slice(0, 5) : null,
-    checkOutTime: co ? co.toTimeString().slice(0, 5) : null,
+    checkInTime: ci ? formatTimeIST(ci) : null,
+    checkOutTime: co ? formatTimeIST(co) : null,
     hoursWorked: null,
     hoursWorkedDecimal: null,
     overtime: null,
@@ -44,7 +54,9 @@ const analyzeAttendance = (record, employee) => {
   };
 
   if (ci) {
-    const actualStart = ci.getHours() * 60 + ci.getMinutes();
+    // Convert to IST for late calculation
+    const istTime = new Date(ci.getTime() + (5.5 * 60 * 60 * 1000));
+    const actualStart = istTime.getUTCHours() * 60 + istTime.getUTCMinutes();
     const lateBy = actualStart - scheduledStart;
     if (lateBy > 0) {
       analysis.isLate = true;
@@ -53,12 +65,15 @@ const analyzeAttendance = (record, employee) => {
   }
 
   if (ci && co) {
-    const workedMins = Math.round((co - ci) / 1000 / 60);
+    // Convert to IST for hours worked calculation
+    const ciIst = new Date(ci.getTime() + (5.5 * 60 * 60 * 1000));
+    const coIst = new Date(co.getTime() + (5.5 * 60 * 60 * 1000));
+    const workedMins = Math.round((coIst - ciIst) / 1000 / 60);
     const workedHours = workedMins / 60;
     analysis.hoursWorked = minsToHHMM(workedMins);
     analysis.hoursWorkedDecimal = parseFloat(workedHours.toFixed(2));
 
-    const actualEnd = co.getHours() * 60 + co.getMinutes();
+    const actualEnd = coIst.getUTCHours() * 60 + coIst.getUTCMinutes();
     const earlyBy = scheduledEnd - actualEnd;
     if (earlyBy > 0) {
       analysis.isEarlyLeave = true;
@@ -158,8 +173,9 @@ exports.smartAttendance = async (req, res) => {
     const now = new Date();
     
     if (shouldPunchIn) {
-      // Punch In Logic
-      const actualStart = now.getHours() * 60 + now.getMinutes();
+      // Punch In Logic - use IST time for late calculation
+      const istTime = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
+      const actualStart = istTime.getUTCHours() * 60 + istTime.getUTCMinutes();
       const scheduledStart = timeToMinutes(employee.workingHours?.startTime || "09:00");
       const lateBy = actualStart - scheduledStart;
 
@@ -278,9 +294,10 @@ exports.checkIn = async (req, res) => {
     if (existing?.checkIn?.time)
       return res.status(400).json({ message: "Already checked in today" });
 
-    // Late check
+    // Late check - use IST time
     const now = new Date();
-    const actualStart = now.getHours() * 60 + now.getMinutes();
+    const istTime = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
+    const actualStart = istTime.getUTCHours() * 60 + istTime.getUTCMinutes();
     const scheduledStart = timeToMinutes(employee.workingHours?.startTime || "09:00");
     const lateBy = actualStart - scheduledStart;
 
