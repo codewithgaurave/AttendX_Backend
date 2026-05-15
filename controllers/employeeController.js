@@ -1,5 +1,6 @@
 const Employee = require("../models/Employee");
 const Admin = require("../models/Admin");
+const { ObjectId } = require("mongodb");
 
 // POST /api/admin/employees
 exports.createEmployee = async (req, res) => {
@@ -80,8 +81,12 @@ exports.getEmployees = async (req, res) => {
       });
     }
 
-    const employees = await Employee.find({ adminId: req.user.id, isActive: true })
-      .populate("officeId", "name address lat long radius");
+    console.log('getEmployees - adminId:', req.user.id, 'type:', typeof req.user.id);
+    const employees = await Employee.find({ 
+      adminId: new ObjectId(req.user.id), 
+      isActive: true 
+    }).populate("officeId", "name address lat long radius");
+    console.log('Found employees:', employees.length);
     
     res.json({ 
       employees, 
@@ -102,7 +107,7 @@ exports.getEmployees = async (req, res) => {
 // GET /api/admin/employees/:id
 exports.getEmployee = async (req, res) => {
   try {
-    const employee = await Employee.findOne({ _id: req.params.id, adminId: req.user.id })
+    const employee = await Employee.findOne({ _id: req.params.id, adminId: new ObjectId(req.user.id) })
       .populate("officeId");
     if (!employee) return res.status(404).json({ message: "Employee not found" });
     res.json(employee);
@@ -115,7 +120,7 @@ exports.getEmployee = async (req, res) => {
 exports.updateEmployee = async (req, res) => {
   try {
     const employee = await Employee.findOneAndUpdate(
-      { _id: req.params.id, adminId: req.user.id },
+      { _id: req.params.id, adminId: new ObjectId(req.user.id) },
       req.body,
       { new: true }
     );
@@ -131,7 +136,7 @@ exports.updateWorkingHours = async (req, res) => {
   try {
     const { startTime, endTime } = req.body;
     const employee = await Employee.findOneAndUpdate(
-      { _id: req.params.id, adminId: req.user.id },
+      { _id: req.params.id, adminId: new ObjectId(req.user.id) },
       { workingHours: { startTime, endTime } },
       { new: true }
     );
@@ -146,7 +151,7 @@ exports.updateWorkingHours = async (req, res) => {
 exports.deactivateEmployee = async (req, res) => {
   try {
     await Employee.findOneAndUpdate(
-      { _id: req.params.id, adminId: req.user.id },
+      { _id: req.params.id, adminId: new ObjectId(req.user.id) },
       { isActive: false }
     );
     res.json({ message: "Employee deactivated" });
@@ -159,7 +164,7 @@ exports.deactivateEmployee = async (req, res) => {
 exports.activateEmployee = async (req, res) => {
   try {
     await Employee.findOneAndUpdate(
-      { _id: req.params.id, adminId: req.user.id },
+      { _id: req.params.id, adminId: new ObjectId(req.user.id) },
       { isActive: true }
     );
     res.json({ message: "Employee activated" });
@@ -168,12 +173,43 @@ exports.activateEmployee = async (req, res) => {
   }
 };
 
-// DELETE /api/admin/employees/:id
+// DELETE /api/admin/employees/:id - Soft delete (move to bin)
 exports.deleteEmployee = async (req, res) => {
   try {
-    const employee = await Employee.findOneAndDelete({ _id: req.params.id, adminId: req.user.id });
+    const employee = await Employee.findOneAndUpdate(
+      { _id: req.params.id, adminId: new ObjectId(req.user.id) },
+      { isActive: false, isDeleted: true },
+      { new: true }
+    );
     if (!employee) return res.status(404).json({ message: "Employee not found" });
-    res.json({ message: "Employee deleted" });
+    res.json({ message: "Employee moved to bin" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// GET /api/admin/employees/deleted - Get deleted employees (bin)
+exports.getDeletedEmployees = async (req, res) => {
+  try {
+    const employees = await Employee.find({ adminId: new ObjectId(req.user.id), isDeleted: true })
+      .populate("officeId", "name address lat long radius")
+      .sort({ isDeleted: -1, createdAt: -1 });
+    res.json(employees);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// PATCH /api/admin/employees/:id/restore - Restore employee from bin
+exports.restoreEmployee = async (req, res) => {
+  try {
+    const employee = await Employee.findOneAndUpdate(
+      { _id: req.params.id, adminId: new ObjectId(req.user.id) },
+      { isActive: true, isDeleted: false },
+      { new: true }
+    );
+    if (!employee) return res.status(404).json({ message: "Employee not found" });
+    res.json({ message: "Employee restored" });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

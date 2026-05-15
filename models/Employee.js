@@ -28,6 +28,7 @@ const employeeSchema = new mongoose.Schema({
   weeklyOff:     { type: [Number], default: [0] }, // 0=Sun,1=Mon,...,6=Sat
 
   isActive: { type: Boolean, default: true },
+  isDeleted: { type: Boolean, default: false }, // Soft delete flag for bin
   selfieRequired: { type: Boolean, default: false }, // Admin can set if selfie is mandatory
 }, { timestamps: true });
 
