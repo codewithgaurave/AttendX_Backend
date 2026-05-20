@@ -20,7 +20,8 @@ app.use(cors({
     'https://www.inaamify.com',
     'https://masteradmin.attenzo.in',
     'https://superadmin.attenzo.in',
-    'https://admin.attenzo.in'
+    'https://admin.attenzo.in',
+    'https://attenzo.in'
   ], 
   credentials: true 
 }));
