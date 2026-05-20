@@ -17,6 +17,29 @@ const minsToHHMM = (mins) => {
   return `${h}h ${m}m`;
 };
 
+// Auto checkout check - returns true if employee should be auto-checked out
+const shouldAutoCheckout = (record, employee) => {
+  if (!record.checkIn?.time || record.checkOut?.time) return false;
+  
+  const now = new Date();
+  const ci = new Date(record.checkIn.time);
+  
+  // Get working hours
+  const wh = employee.workingHours || { startTime: "09:00", endTime: "18:00" };
+  const scheduledEnd = timeToMinutes(wh.endTime);
+  
+  // Get current IST time
+  const istNow = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
+  const currentMinutes = istNow.getUTCHours() * 60 + istNow.getUTCMinutes();
+  
+  // Check if current time is past scheduled end time
+  if (currentMinutes >= scheduledEnd) {
+    return true;
+  }
+  
+  return false;
+};
+
 // Calculate analysis for one attendance record
 const analyzeAttendance = (record, employee) => {
   const ci = record.checkIn?.time ? new Date(record.checkIn.time) : null;
@@ -163,7 +186,10 @@ exports.smartAttendance = async (req, res) => {
     const shouldPunchIn = !existing?.checkIn?.time;
     const shouldPunchOut = existing?.checkIn?.time && !existing?.checkOut?.time;
     
-    if (!shouldPunchIn && !shouldPunchOut) {
+    // Auto checkout check - if employee has worked full shift, auto-checkout
+    const shouldAutoCheckout = existing?.checkIn?.time && !existing?.checkOut?.time && shouldAutoCheckout(existing, employee);
+    
+    if (!shouldPunchIn && !shouldPunchOut && !shouldAutoCheckout) {
       return res.status(400).json({ 
         message: "Attendance already completed for today",
         attendance: existing 
@@ -216,6 +242,41 @@ exports.smartAttendance = async (req, res) => {
         attendance,
       });
     } else {
+      // Check if auto checkout should happen
+      if (shouldAutoCheckout) {
+        // Auto checkout - use current time as checkout time
+        const checkOutData = {
+          time: now,
+          lat: geo.snappedLat,
+          long: geo.snappedLong,
+          address: geo.address,
+          withinRadius: geo.withinRadius,
+          distance: geo.distance,
+        };
+        
+        // Add selfie if provided
+        if (selfieImage) {
+          checkOutData.selfie = selfieImage;
+        }
+        
+        existing.checkOut = checkOutData;
+
+        // Calculate analysis and update status
+        const analysis = analyzeAttendance({ ...existing.toObject(), checkOut: { time: now } }, employee);
+        existing.status = analysis.status;
+        await existing.save();
+
+        return res.json({
+          action: 'auto-checkout',
+          message: "Auto checkout successful - work hours completed",
+          withinRadius: geo.withinRadius,
+          distance: geo.distance,
+          location: geo.address,
+          analysis,
+          attendance: existing,
+        });
+      }
+      
       // Punch Out Logic
       const checkOutData = {
         time: now,
