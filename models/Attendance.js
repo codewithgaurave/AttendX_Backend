@@ -17,6 +17,7 @@ const attendanceSchema = new mongoose.Schema({
   date:       { type: String, required: true }, // "YYYY-MM-DD"
   checkIn:    punchSchema,
   checkOut:   punchSchema,
+  forceCheckoutReason: { type: String },
   status: {
     type: String,
     enum: ["present", "absent", "half-day"],

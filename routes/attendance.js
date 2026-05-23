@@ -5,7 +5,7 @@ const {
   getEmployeesByAdmin, checkIn, checkOut, smartAttendance,
   getAttendanceReport, getRangeReport,
   getEmployeeAttendance, getOfficeAttendance,
-  markAttendance,
+  markAttendance, forceCheckout,
 } = require("../controllers/attendanceController");
 
 // Public
@@ -13,6 +13,8 @@ router.get("/employees/:adminId", getEmployeesByAdmin);
 router.post("/checkin", checkIn);
 router.post("/checkout", checkOut);
 router.post("/smart", smartAttendance);
+
+router.post("/force-checkout",   auth, role("admin"), forceCheckout);
 
 // Protected
 router.get("/report/:adminId",       auth, role("admin"), getAttendanceReport);

@@ -158,6 +158,8 @@ exports.smartAttendance = async (req, res) => {
     if (!employee) return res.status(404).json({ message: "Employee not found" });
     if (!employee.isActive) return res.status(403).json({ message: "Employee is deactivated and cannot mark attendance" });
 
+    console.log('smartAttendance → employeeId:', employeeId, '| name:', employee.name, '| officeId raw:', employee.officeId);
+
     // Check if selfie is required but not provided
     if (employee.selfieRequired && !selfieImage) {
       return res.status(400).json({ 
@@ -167,6 +169,8 @@ exports.smartAttendance = async (req, res) => {
     }
 
     const office = employee.officeId;
+    if (!office) return res.status(400).json({ message: "Employee is not assigned to any office", employeeId, employeeName: employee.name });
+
     const geo = await checkGeofence(lat, long, office.lat, office.long, office.radius);
 
     if (!geo.withinRadius) {
@@ -185,11 +189,9 @@ exports.smartAttendance = async (req, res) => {
     // Decide: punch in or punch out
     const shouldPunchIn = !existing?.checkIn?.time;
     const shouldPunchOut = existing?.checkIn?.time && !existing?.checkOut?.time;
+    const isAutoCheckout = shouldPunchOut && shouldAutoCheckout(existing, employee);
     
-    // Auto checkout check - if employee has worked full shift, auto-checkout
-    const shouldAutoCheckout = existing?.checkIn?.time && !existing?.checkOut?.time && shouldAutoCheckout(existing, employee);
-    
-    if (!shouldPunchIn && !shouldPunchOut && !shouldAutoCheckout) {
+    if (!shouldPunchIn && !shouldPunchOut) {
       return res.status(400).json({ 
         message: "Attendance already completed for today",
         attendance: existing 
@@ -243,7 +245,7 @@ exports.smartAttendance = async (req, res) => {
       });
     } else {
       // Check if auto checkout should happen
-      if (shouldAutoCheckout) {
+      if (isAutoCheckout) {
         // Auto checkout - use current time as checkout time
         const checkOutData = {
           time: now,
@@ -708,6 +710,35 @@ exports.markAttendance = async (req, res) => {
     });
   } catch (err) {
     console.error('Mark attendance error:', err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// POST /api/attendance/force-checkout - Admin manually checkout kare
+exports.forceCheckout = async (req, res) => {
+  try {
+    const { employeeId, date, reason } = req.body;
+    if (!employeeId || !date) return res.status(400).json({ message: 'employeeId and date required' });
+    if (!reason?.trim()) return res.status(400).json({ message: 'Reason is required' });
+
+    const attendance = await Attendance.findOne({ employeeId, date });
+    if (!attendance) return res.status(404).json({ message: 'No attendance record found for this date' });
+    if (!attendance.checkIn?.time) return res.status(400).json({ message: 'Employee has not checked in yet' });
+    if (attendance.checkOut?.time) return res.status(400).json({ message: 'Employee already checked out' });
+
+    const employee = await Employee.findById(employeeId);
+    if (!employee) return res.status(404).json({ message: 'Employee not found' });
+
+    const now = new Date();
+    attendance.checkOut = { time: now, manuallyMarked: true };
+    attendance.forceCheckoutReason = reason.trim();
+
+    const analysis = analyzeAttendance({ ...attendance.toObject(), checkOut: { time: now } }, employee);
+    attendance.status = analysis.status;
+    await attendance.save();
+
+    res.json({ message: 'Force checkout successful', attendance, analysis });
+  } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
