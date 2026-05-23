@@ -200,6 +200,31 @@ exports.getDeletedEmployees = async (req, res) => {
   }
 };
 
+// DELETE /api/admin/employees/:id/permanent - Permanently delete from bin (requires password)
+exports.permanentDeleteEmployee = async (req, res) => {
+  try {
+    const { password } = req.body;
+    if (!password) return res.status(400).json({ message: 'Password is required' });
+
+    const admin = await Admin.findById(req.user.id);
+    if (!admin) return res.status(404).json({ message: 'Admin not found' });
+
+    const isMatch = await admin.matchPassword(password);
+    if (!isMatch) return res.status(401).json({ message: 'Incorrect password' });
+
+    const employee = await Employee.findOneAndDelete({
+      _id: req.params.id,
+      adminId: new ObjectId(req.user.id),
+      isDeleted: true
+    });
+    if (!employee) return res.status(404).json({ message: 'Employee not found in bin' });
+
+    res.json({ message: 'Employee permanently deleted' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 // PATCH /api/admin/employees/:id/restore - Restore employee from bin
 exports.restoreEmployee = async (req, res) => {
   try {
