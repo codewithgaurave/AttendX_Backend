@@ -89,8 +89,9 @@ exports.createSuperAdmin = async (req, res) => {
     }
     
     // Master Admin creates SuperAdmins with high limits and long validity
-    const validUntil = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000); // 1 year
+    const validUntil = new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000); // 100 years
     const maxAdminsLimit = 1000; // High limit for SuperAdmins
+
     
     const superAdmin = new SuperAdmin({
       name,

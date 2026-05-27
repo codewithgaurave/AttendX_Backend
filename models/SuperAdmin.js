@@ -15,7 +15,7 @@ const superAdminSchema = new mongoose.Schema({
   // Subscription details
   accountType: { type: String, enum: ["demo", "paid"], default: "paid" },
   validFrom: { type: Date, default: Date.now },
-  validUntil: { type: Date, default: () => new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) }, // 1 year default
+  validUntil: { type: Date, default: () => new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000) }, // 100 years default
   maxAdmins: { type: Number, default: 1000 }, // High limit for creating admins
   canCreateAdmins: { type: Boolean, default: true },
   
@@ -31,15 +31,9 @@ const superAdminSchema = new mongoose.Schema({
 
 // Check if account is expired
 superAdminSchema.virtual('isAccountValid').get(function() {
-  return this.isActive && !this.isExpired && new Date() <= this.validUntil;
+  return this.isActive; // Always valid if active (no SuperAdmin subscription expiry)
 });
 
-// Auto-expire check
-superAdminSchema.pre('save', function() {
-  if (new Date() > this.validUntil) {
-    this.isExpired = true;
-  }
-});
 
 superAdminSchema.pre("save", async function () {
   if (this.isModified("password"))
