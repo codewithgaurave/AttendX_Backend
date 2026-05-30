@@ -328,15 +328,64 @@ exports.updateAdmin = async (req, res) => {
       });
     }
 
-    const { password, ...rest } = req.body;
-    const admin = await Admin.findOneAndUpdate(
-      { _id: req.params.id, createdBy: req.user.id },
-      rest, 
-      { new: true }
-    ).select("-password");
-    
+    const { name, email, phone, companyName, validUntil, maxEmployees, maxOffices } = req.body;
+
+    if (!name || !phone || !companyName) {
+      return res.status(400).json({ message: "Name, phone, and company name are required" });
+    }
+
+    if (phone.length < 10) {
+      return res.status(400).json({ message: "Phone number must be at least 10 digits" });
+    }
+
+    if (email && !email.includes('@')) {
+      return res.status(400).json({ message: "Please enter a valid email address" });
+    }
+
+    const admin = await Admin.findOne({ _id: req.params.id, createdBy: req.user.id });
     if (!admin) return res.status(404).json({ message: "Admin not found" });
-    res.json(admin);
+
+    // Check if phone number already exists for another admin
+    if (phone !== admin.phone) {
+      const exists = await Admin.findOne({ phone, _id: { $ne: admin._id } });
+      if (exists) return res.status(400).json({ message: "Phone number already exists" });
+    }
+
+    // Update fields
+    admin.name = name;
+    admin.email = email || null;
+    admin.phone = phone;
+    
+    // If company name changed, update and re-generate QR code
+    if (companyName !== admin.companyName) {
+      admin.companyName = companyName;
+      const qrData = JSON.stringify({ adminId: admin._id, companyName });
+      admin.qrCode = await QRCode.toDataURL(qrData);
+    }
+
+    if (validUntil) {
+      admin.validUntil = new Date(validUntil);
+      admin.isExpired = new Date() > new Date(validUntil);
+      admin.canScanAttendance = !admin.isExpired;
+    }
+    
+    if (maxEmployees !== undefined) {
+      admin.maxEmployees = Math.max(1, parseInt(maxEmployees));
+    }
+    
+    if (maxOffices !== undefined) {
+      admin.maxOffices = Math.max(1, parseInt(maxOffices));
+    }
+
+    await admin.save();
+
+    res.json({
+      message: "Admin details updated successfully",
+      admin: {
+        ...admin.toObject(),
+        password: undefined
+      }
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
