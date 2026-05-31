@@ -106,8 +106,10 @@ const analyzeAttendance = (record, employee) => {
     const overtimeMins = workedMins - (scheduledEnd - scheduledStart);
     if (overtimeMins > 0) analysis.overtime = minsToHHMM(overtimeMins);
 
-    // Status logic
-    if (workedHours >= scheduledHours * 0.9) {
+    // Status logic: respect manual marking and force checkout
+    if (record.manuallyMarked || record.forceCheckoutReason) {
+      analysis.status = record.status || "present";
+    } else if (workedHours >= scheduledHours * 0.9) {
       analysis.status = "present";
     } else if (workedHours >= scheduledHours * 0.5) {
       analysis.status = "half-day";
@@ -490,6 +492,8 @@ exports.getAttendanceReport = async (req, res) => {
         checkOutSelfie: rec.checkOut?.selfie || null,
         checkInDistance: rec.checkIn?.distance || null,
         checkOutDistance: rec.checkOut?.distance || null,
+        note: rec.note || null,
+        manuallyMarked: rec.manuallyMarked || false,
       };
     });
 
@@ -561,6 +565,8 @@ exports.getRangeReport = async (req, res) => {
         ...analysis,
         checkInLocation: rec.checkIn?.address,
         checkOutLocation: rec.checkOut?.address,
+        note: rec.note || null,
+        manuallyMarked: rec.manuallyMarked || false,
       });
     });
 
@@ -612,7 +618,16 @@ exports.getOfficeAttendance = async (req, res) => {
     const present = records.map(rec => {
       const emp = rec.employeeId;
       const analysis = emp ? analyzeAttendance(rec, emp) : {};
-      return { employeeId: emp?._id, name: emp?.name, employeeCode: emp?.employeeCode, designation: emp?.designation, date: rec.date, ...analysis };
+      return { 
+        employeeId: emp?._id, 
+        name: emp?.name, 
+        employeeCode: emp?.employeeCode, 
+        designation: emp?.designation, 
+        date: rec.date, 
+        ...analysis,
+        note: rec.note || null,
+        manuallyMarked: rec.manuallyMarked || false
+      };
     });
 
     const absent = officeEmployees
@@ -635,7 +650,7 @@ exports.getOfficeAttendance = async (req, res) => {
 // POST /api/attendance/mark - Manual attendance marking by admin
 exports.markAttendance = async (req, res) => {
   try {
-    const { employeeId, date, status } = req.body;
+    const { employeeId, date, status, note } = req.body;
     
     if (!employeeId || !date || !status) {
       return res.status(400).json({ message: "employeeId, date, and status are required" });
@@ -651,6 +666,10 @@ exports.markAttendance = async (req, res) => {
     // Find or create attendance record
     let attendance = await Attendance.findOne({ employeeId, date });
     
+    if (status === 'absent' && attendance?.checkIn?.time) {
+      return res.status(400).json({ message: "Cannot mark as absent because the employee has already checked in for today." });
+    }
+
     if (!attendance) {
       attendance = new Attendance({
         employeeId,
@@ -659,12 +678,14 @@ exports.markAttendance = async (req, res) => {
         date,
         status,
         manuallyMarked: true,
+        note: note || undefined,
         markedBy: req.user?.id || null,
         markedAt: new Date()
       });
     } else {
       attendance.status = status;
       attendance.manuallyMarked = true;
+      attendance.note = note !== undefined ? note : attendance.note;
       attendance.markedBy = req.user?.id || null;
       attendance.markedAt = new Date();
     }
