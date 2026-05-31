@@ -272,7 +272,7 @@ exports.getSuperAdminContact = async (req, res) => {
     
     res.json({
       name: admin.createdBy.name,
-      phone: admin.createdBy.phone,
+      phone: "9118091165",
       email: admin.createdBy.email,
       company: admin.createdBy.company
     });
