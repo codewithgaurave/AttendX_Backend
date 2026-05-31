@@ -399,7 +399,12 @@ exports.downloadSalarySlip = async (req, res) => {
         bottom: "0.3in",
         left: "0.4in"
       },
-      zoomFactor: '0.85'
+      zoomFactor: '0.85',
+      childProcessOptions: {
+        env: {
+          OPENSSL_CONF: '/dev/null'
+        }
+      }
     };
 
     pdf.create(htmlContent, options).toBuffer((err, buffer) => {

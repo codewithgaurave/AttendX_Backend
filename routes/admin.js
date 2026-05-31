@@ -75,7 +75,14 @@ router.get("/test-pdf-download", (req, res) => {
     </html>
   `;
   
-  const options = { format: 'A4' };
+  const options = {
+    format: 'A4',
+    childProcessOptions: {
+      env: {
+        OPENSSL_CONF: '/dev/null'
+      }
+    }
+  };
   
   pdf.create(html, options).toBuffer((err, buffer) => {
     if (err) {
