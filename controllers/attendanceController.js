@@ -125,6 +125,7 @@ exports.getEmployeesByAdmin = async (req, res) => {
     const employees = await Employee.find({
       adminId: req.params.adminId,
       isActive: true,
+      isPinVerified: { $ne: true } // Only show employees who haven't verified their PIN yet
     }).select("name employeeCode designation profilePhoto officeId selfieRequired");
     res.json(employees);
   } catch (err) {
@@ -787,3 +788,57 @@ exports.getEmployeeAttendance = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+// POST /api/attendance/verify-pin
+exports.verifyPin = async (req, res) => {
+  try {
+    const { employeeId, pin } = req.body;
+    if (!employeeId || !pin) {
+      return res.status(400).json({ message: "Employee ID and PIN are required" });
+    }
+
+    const employee = await Employee.findById(employeeId);
+    if (!employee) return res.status(404).json({ message: "Employee not found" });
+    if (!employee.isActive) return res.status(403).json({ message: "Employee is deactivated" });
+
+    if (employee.pin !== pin) {
+      return res.status(400).json({ message: "Incorrect PIN. Please contact your admin." });
+    }
+
+    // Mark PIN as verified
+    employee.isPinVerified = true;
+    await employee.save();
+
+    res.json({
+      message: "PIN verified successfully",
+      employee: {
+        _id: employee._id,
+        name: employee.name,
+        employeeCode: employee.employeeCode,
+        designation: employee.designation,
+        selfieRequired: employee.selfieRequired,
+        officeId: employee.officeId,
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// GET /api/attendance/employee-info/:employeeId
+exports.getEmployeeInfo = async (req, res) => {
+  try {
+    const employee = await Employee.findOne({
+      _id: req.params.employeeId,
+      isActive: true
+    }).select("name employeeCode designation profilePhoto officeId selfieRequired isActive isPinVerified");
+
+    if (!employee) {
+      return res.status(404).json({ message: "Employee not found or deactivated" });
+    }
+    res.json(employee);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+

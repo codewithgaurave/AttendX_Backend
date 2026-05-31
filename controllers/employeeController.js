@@ -43,6 +43,13 @@ exports.createEmployee = async (req, res) => {
       });
     }
 
+    // Validate 4-digit numeric PIN
+    if (!req.body.pin || req.body.pin.length !== 4 || !/^\d+$/.test(req.body.pin)) {
+      return res.status(400).json({ 
+        message: "A 4-digit numeric PIN is required for creating a new employee."
+      });
+    }
+
     const employee = await Employee.create({ ...req.body, adminId: req.user.id });
     res.status(201).json(employee);
   } catch (err) {
@@ -119,9 +126,23 @@ exports.getEmployee = async (req, res) => {
 // PUT /api/admin/employees/:id
 exports.updateEmployee = async (req, res) => {
   try {
+    const { pin } = req.body;
+    let updateData = { ...req.body };
+
+    if (pin) {
+      if (pin.length !== 4 || !/^\d+$/.test(pin)) {
+        return res.status(400).json({ message: "4-digit numeric PIN is required" });
+      }
+
+      const currentEmp = await Employee.findOne({ _id: req.params.id, adminId: new ObjectId(req.user.id) });
+      if (currentEmp && currentEmp.pin !== pin) {
+        updateData.isPinVerified = false; // Reset verification status since PIN changed
+      }
+    }
+
     const employee = await Employee.findOneAndUpdate(
       { _id: req.params.id, adminId: new ObjectId(req.user.id) },
-      req.body,
+      updateData,
       { new: true }
     );
     if (!employee) return res.status(404).json({ message: "Employee not found" });
@@ -259,3 +280,26 @@ exports.getSuperAdminContact = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+// PATCH /api/admin/employees/:id/reset-pin
+exports.resetPin = async (req, res) => {
+  try {
+    const { pin } = req.body;
+    if (!pin || pin.length !== 4 || !/^\d+$/.test(pin)) {
+      return res.status(400).json({ message: "4-digit numeric PIN is required" });
+    }
+
+    const employee = await Employee.findOneAndUpdate(
+      { _id: req.params.id, adminId: new ObjectId(req.user.id) },
+      { pin, isPinVerified: false },
+      { new: true }
+    );
+
+    if (!employee) return res.status(404).json({ message: "Employee not found" });
+
+    res.json({ message: "PIN reset successful. Employee status reset to unverified.", employee });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+

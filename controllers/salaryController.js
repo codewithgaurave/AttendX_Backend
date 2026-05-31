@@ -38,212 +38,181 @@ const generateSalarySlipHTML = (data) => {
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
-          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+          font-family: Arial, Helvetica, sans-serif;
           background: white;
           color: #333;
-          font-size: 12px;
+          font-size: 11px;
+          line-height: 1.3;
         }
         .container { 
           width: 100%;
           background: white;
-        }
-        .header {
-          background: #1a1612;
-          color: white;
-          padding: 16px 24px;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          border-bottom: 3px solid #c84b2f;
-        }
-        .company-name {
-          font-size: 20px;
-          font-weight: 800;
-          letter-spacing: 2px;
-        }
-        .document-title {
-          font-size: 11px;
-          color: #aaa;
-          letter-spacing: 3px;
-          text-transform: uppercase;
-        }
-        .content { padding: 16px 24px; }
-        .info-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 16px;
-          margin-bottom: 14px;
-          padding-bottom: 14px;
-          border-bottom: 1px solid #eee;
-        }
-        .info-group h3 {
-          font-size: 9px;
-          color: #999;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-          margin-bottom: 8px;
-          font-weight: 700;
-          border-bottom: 1.5px solid #c84b2f;
-          padding-bottom: 4px;
-        }
-        .info-row {
-          display: flex;
-          justify-content: space-between;
-          margin-bottom: 5px;
-          font-size: 11px;
-        }
-        .info-row .label { color: #666; }
-        .info-row .value { font-weight: 600; color: #1a1612; }
-        .section-title {
-          font-size: 9px;
-          color: #999;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-          margin-bottom: 8px;
-          font-weight: 700;
-          border-bottom: 1.5px solid #c84b2f;
-          padding-bottom: 4px;
-        }
-        .attendance-grid {
-          display: grid;
-          grid-template-columns: repeat(7, 1fr);
-          gap: 6px;
-          margin-bottom: 14px;
-        }
-        .att-card {
-          background: #f9f7f4;
-          border: 1px solid #e8e0d8;
-          border-radius: 4px;
-          padding: 8px 4px;
-          text-align: center;
-        }
-        .att-card .label {
-          font-size: 8px;
-          color: #999;
-          text-transform: uppercase;
-          margin-bottom: 4px;
-        }
-        .att-card .value {
-          font-size: 18px;
-          font-weight: 700;
-          color: #1a1612;
-        }
-        .salary-table {
-          width: 100%;
-          border-collapse: collapse;
-          margin-bottom: 10px;
-        }
-        .salary-table th {
-          background: #f0ebe5;
-          padding: 7px 10px;
-          text-align: left;
-          font-size: 9px;
-          font-weight: 700;
-          color: #666;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-          border-bottom: 1.5px solid #d8d0c0;
-        }
-        .salary-table td {
-          padding: 7px 10px;
-          border-bottom: 1px solid #eee;
-          font-size: 11px;
-        }
-        .salary-table tr:nth-child(even) { background: #faf8f5; }
-        .salary-table .amount { text-align: right; font-weight: 600; color: #1a1612; }
-        .salary-table .deduction { color: #c84b2f; }
-        .salary-table .highlight { background: #1a1612 !important; }
-        .salary-table .highlight td { color: white; font-weight: 700; }
-        .salary-table .highlight .amount { color: #c84b2f; }
-        .amount-words {
-          background: #f9f7f4;
-          border-left: 3px solid #c84b2f;
-          padding: 8px 12px;
-          margin-bottom: 12px;
-          border-radius: 2px;
-        }
-        .amount-words .label { font-size: 9px; color: #999; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 3px; }
-        .amount-words .value { font-size: 11px; font-weight: 600; color: #1a1612; }
-        .footer {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 20px;
-          margin-top: 12px;
-          padding-top: 10px;
-          border-top: 1px solid #eee;
-        }
-        .footer-note { font-size: 9px; color: #999; line-height: 1.5; }
-        .signature-box { text-align: right; }
-        .signature-box .label { font-size: 9px; color: #999; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 24px; display: block; }
-        .signature-box .sign-line { border-top: 1px solid #333; padding-top: 5px; font-size: 10px; font-weight: 600; color: #1a1612; }
-        .powered-by { text-align: center; margin-top: 10px; font-size: 9px; color: #bbb; letter-spacing: 1px; }
-        @media print {
-          body { background: white; }
-          .container { box-shadow: none; }
+          padding: 10px;
         }
       </style>
     </head>
     <body>
       <div class="container">
-        <div class="header">
-          <div>
-            <div class="company-name">${data.companyName.toUpperCase()}</div>
-            <div class="document-title">Salary Slip</div>
-          </div>
-          <div style="text-align:right; color:#aaa; font-size:11px;">
-            <div>${monthLabel}</div>
-            <div style="font-size:9px; margin-top:3px;">Generated: ${new Date().toLocaleDateString('en-IN')}</div>
-          </div>
-        </div>
-        <div class="content">
-          <div class="info-grid">
-            <div class="info-group">
-              <h3>Employee Information</h3>
-              <div class="info-row"><span class="label">Name</span><span class="value">${employee.name.toUpperCase()}</span></div>
-              <div class="info-row"><span class="label">Employee Code</span><span class="value">${employee.employeeCode}</span></div>
-              <div class="info-row"><span class="label">Designation</span><span class="value">${employee.designation}</span></div>
-              <div class="info-row"><span class="label">Department</span><span class="value">${employee.department || 'N/A'}</span></div>
-            </div>
-            <div class="info-group">
-              <h3>Salary Period</h3>
-              <div class="info-row"><span class="label">Month</span><span class="value">${monthLabel}</span></div>
-              <div class="info-row"><span class="label">Monthly CTC</span><span class="value">&#8377; ${employee.monthlySalary.toLocaleString('en-IN')}</span></div>
-            </div>
-          </div>
-          <div class="section-title">Attendance Summary</div>
-          <div class="attendance-grid">
-            <div class="att-card"><div class="label">Working Days</div><div class="value">${attendance.totalWorkingDays}</div></div>
-            <div class="att-card"><div class="label">Present</div><div class="value">${attendance.present}</div></div>
-            <div class="att-card"><div class="label">Half Days</div><div class="value">${attendance.halfDay}</div></div>
-            <div class="att-card"><div class="label">Absent</div><div class="value">${attendance.absent}</div></div>
-            <div class="att-card"><div class="label">Weekly Offs</div><div class="value">${attendance.weeklyOffs}</div></div>
-            <div class="att-card"><div class="label">Holidays</div><div class="value">${attendance.holidayCount}</div></div>
-            <div class="att-card"><div class="label">Hours Worked</div><div class="value">${totalHoursWorked.toFixed(1)}h</div></div>
-          </div>
-          <div class="section-title">Salary Breakdown</div>
-          <table class="salary-table">
-            <thead><tr><th>Particulars</th><th style="text-align:right;">Amount</th></tr></thead>
-            <tbody>
-              <tr><td>Monthly CTC</td><td class="amount">&#8377; ${employee.monthlySalary.toLocaleString('en-IN')}</td></tr>
-              <tr><td>Per Day Salary</td><td class="amount">&#8377; ${salary.perDaySalary.toFixed(2)}</td></tr>
-              <tr><td>Earned Days (Present + Half Day)</td><td class="amount">${salary.earnedDays}</td></tr>
-              <tr><td>Gross Salary</td><td class="amount">&#8377; ${salary.grossSalary.toLocaleString('en-IN')}</td></tr>
-              <tr><td class="deduction">Deduction (Absent Days)</td><td class="amount deduction">- &#8377; ${salary.deduction.toLocaleString('en-IN')}</td></tr>
-              <tr class="highlight"><td>NET SALARY</td><td class="amount">&#8377; ${netSalary.toLocaleString('en-IN')}</td></tr>
-            </tbody>
-          </table>
-          <div class="amount-words">
-            <div class="label">Amount in Words</div>
-            <div class="value">RUPEES ${amountInWords.toUpperCase()}</div>
-          </div>
-          <div class="footer">
-            <div class="footer-note"><strong>Note:</strong> This is a system-generated salary slip. For any discrepancies, please contact HR.</div>
-            <div class="signature-box">
-              <span class="label">Authorized By</span>
-              <div class="sign-line">HR Manager</div>
-            </div>
-          </div>
-          <div class="powered-by">Powered by <strong style="color:#c84b2f;">AttenZo</strong> &mdash; Attendance Management System</div>
+        <!-- Header -->
+        <table cellpadding="0" cellspacing="0" style="width: 100%; border-collapse: collapse; background: #1a1612; color: white; border-bottom: 3px solid #c84b2f; margin-bottom: 15px;">
+          <tr>
+            <td style="padding: 12px 18px; vertical-align: middle;">
+              <div style="font-size: 20px; font-weight: bold; letter-spacing: 2px;">${companyName.toUpperCase()}</div>
+              <div style="font-size: 10px; color: #bbb; letter-spacing: 3px; text-transform: uppercase; margin-top: 3px; font-weight: bold;">Salary Slip</div>
+            </td>
+            <td style="padding: 12px 18px; text-align: right; vertical-align: middle; color: #ccc; font-size: 11px;">
+              <div style="font-weight: bold; color: white; font-size: 13px;">${monthLabel}</div>
+              <div style="font-size: 9px; margin-top: 4px; color: #999;">Generated: ${new Date().toLocaleDateString('en-IN')}</div>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Info Section -->
+        <table cellpadding="0" cellspacing="0" style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
+          <tr>
+            <td style="width: 48%; vertical-align: top;">
+              <div style="font-size: 10px; color: #c84b2f; text-transform: uppercase; font-weight: bold; border-bottom: 1.5px solid #c84b2f; padding-bottom: 4px; margin-bottom: 6px; letter-spacing: 1px;">Employee Information</div>
+              <table cellpadding="0" cellspacing="0" style="width: 100%; border-collapse: collapse;">
+                <tr style="border-bottom: 1px dotted #e0dcd5;">
+                  <td style="padding: 5px 0; color: #666; font-size: 11px;">Name</td>
+                  <td style="padding: 5px 0; font-weight: bold; color: #1a1612; font-size: 11px; text-align: right;">${employee.name.toUpperCase()}</td>
+                </tr>
+                <tr style="border-bottom: 1px dotted #e0dcd5;">
+                  <td style="padding: 5px 0; color: #666; font-size: 11px;">Employee Code</td>
+                  <td style="padding: 5px 0; font-weight: bold; color: #1a1612; font-size: 11px; text-align: right;">${employee.employeeCode}</td>
+                </tr>
+                <tr style="border-bottom: 1px dotted #e0dcd5;">
+                  <td style="padding: 5px 0; color: #666; font-size: 11px;">Designation</td>
+                  <td style="padding: 5px 0; font-weight: bold; color: #1a1612; font-size: 11px; text-align: right;">${employee.designation}</td>
+                </tr>
+                <tr style="border-bottom: 1px dotted #e0dcd5;">
+                  <td style="padding: 5px 0; color: #666; font-size: 11px;">Department</td>
+                  <td style="padding: 5px 0; font-weight: bold; color: #1a1612; font-size: 11px; text-align: right;">${employee.department || 'N/A'}</td>
+                </tr>
+              </table>
+            </td>
+            <td style="width: 4%;"></td>
+            <td style="width: 48%; vertical-align: top;">
+              <div style="font-size: 10px; color: #c84b2f; text-transform: uppercase; font-weight: bold; border-bottom: 1.5px solid #c84b2f; padding-bottom: 4px; margin-bottom: 6px; letter-spacing: 1px;">Salary Period</div>
+              <table cellpadding="0" cellspacing="0" style="width: 100%; border-collapse: collapse;">
+                <tr style="border-bottom: 1px dotted #e0dcd5;">
+                  <td style="padding: 5px 0; color: #666; font-size: 11px;">Month</td>
+                  <td style="padding: 5px 0; font-weight: bold; color: #1a1612; font-size: 11px; text-align: right;">${monthLabel}</td>
+                </tr>
+                <tr style="border-bottom: 1px dotted #e0dcd5;">
+                  <td style="padding: 5px 0; color: #666; font-size: 11px;">Monthly CTC</td>
+                  <td style="padding: 5px 0; font-weight: bold; color: #1a1612; font-size: 11px; text-align: right;">&#8377; ${employee.monthlySalary.toLocaleString('en-IN')}</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Attendance Summary -->
+        <div style="font-size: 10px; color: #c84b2f; text-transform: uppercase; font-weight: bold; border-bottom: 1.5px solid #c84b2f; padding-bottom: 4px; margin-bottom: 8px; letter-spacing: 1px;">Attendance Summary</div>
+        <table cellpadding="0" cellspacing="0" style="width: 100%; border-collapse: collapse; margin-bottom: 15px; table-layout: fixed;">
+          <tr>
+            <td style="background: #f9f7f4; border: 1px solid #e8e0d8; border-radius: 4px; padding: 8px 2px; text-align: center; width: 13.5%;">
+              <div style="font-size: 8px; color: #7a6e65; text-transform: uppercase; font-weight: bold; margin-bottom: 3px; letter-spacing: 0.3px;">Working Days</div>
+              <div style="font-size: 16px; font-weight: bold; color: #1a1612;">${attendance.totalWorkingDays}</div>
+            </td>
+            <td style="width: 5px;"></td>
+            <td style="background: #eef7f2; border: 1px solid #d0ebd9; border-radius: 4px; padding: 8px 2px; text-align: center; width: 13.5%;">
+              <div style="font-size: 8px; color: #3b7a57; text-transform: uppercase; font-weight: bold; margin-bottom: 3px; letter-spacing: 0.3px;">Present</div>
+              <div style="font-size: 16px; font-weight: bold; color: #1e5a38;">${attendance.present}</div>
+            </td>
+            <td style="width: 5px;"></td>
+            <td style="background: #fdf8eb; border: 1px solid #f9ebc4; border-radius: 4px; padding: 8px 2px; text-align: center; width: 13.5%;">
+              <div style="font-size: 8px; color: #a37f26; text-transform: uppercase; font-weight: bold; margin-bottom: 3px; letter-spacing: 0.3px;">Half Days</div>
+              <div style="font-size: 16px; font-weight: bold; color: #8a6616;">${attendance.halfDay}</div>
+            </td>
+            <td style="width: 5px;"></td>
+            <td style="background: #fdf2f2; border: 1px solid #fbd5d5; border-radius: 4px; padding: 8px 2px; text-align: center; width: 13.5%;">
+              <div style="font-size: 8px; color: #b83a21; text-transform: uppercase; font-weight: bold; margin-bottom: 3px; letter-spacing: 0.3px;">Absent</div>
+              <div style="font-size: 16px; font-weight: bold; color: #9b2c2c;">${attendance.absent}</div>
+            </td>
+            <td style="width: 5px;"></td>
+            <td style="background: #f0f4f8; border: 1px solid #d6e4f0; border-radius: 4px; padding: 8px 2px; text-align: center; width: 13.5%;">
+              <div style="font-size: 8px; color: #3b6d8d; text-transform: uppercase; font-weight: bold; margin-bottom: 3px; letter-spacing: 0.3px;">Weekly Offs</div>
+              <div style="font-size: 16px; font-weight: bold; color: #224d70;">${attendance.weeklyOffs}</div>
+            </td>
+            <td style="width: 5px;"></td>
+            <td style="background: #f0fdf4; border: 1px solid #dcfce7; border-radius: 4px; padding: 8px 2px; text-align: center; width: 13.5%;">
+              <div style="font-size: 8px; color: #15803d; text-transform: uppercase; font-weight: bold; margin-bottom: 3px; letter-spacing: 0.3px;">Holidays</div>
+              <div style="font-size: 16px; font-weight: bold; color: #15803d;">${attendance.holidayCount}</div>
+            </td>
+            <td style="width: 5px;"></td>
+            <td style="background: #f5f3f7; border: 1px solid #e3deea; border-radius: 4px; padding: 8px 2px; text-align: center; width: 13.5%;">
+              <div style="font-size: 8px; color: #6b4ba3; text-transform: uppercase; font-weight: bold; margin-bottom: 3px; letter-spacing: 0.3px;">Hours Worked</div>
+              <div style="font-size: 16px; font-weight: bold; color: #4f2e82;">${totalHoursWorked.toFixed(1)}h</div>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Salary Breakdown -->
+        <div style="font-size: 10px; color: #c84b2f; text-transform: uppercase; font-weight: bold; border-bottom: 1.5px solid #c84b2f; padding-bottom: 4px; margin-bottom: 8px; letter-spacing: 1px;">Salary Breakdown</div>
+        <table cellpadding="0" cellspacing="0" style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
+          <thead>
+            <tr style="background: #f0ebe5; border-bottom: 2px solid #d8d0c0;">
+              <th style="padding: 7px 10px; text-align: left; font-size: 9px; font-weight: bold; color: #666; text-transform: uppercase; letter-spacing: 0.5px; width: 65%;">Particulars</th>
+              <th style="padding: 7px 10px; text-align: right; font-size: 9px; font-weight: bold; color: #666; text-transform: uppercase; letter-spacing: 0.5px; width: 35%;">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom: 1px solid #eee; background: #faf8f5;">
+              <td style="padding: 7px 10px; font-size: 11px; color: #333;">Monthly CTC</td>
+              <td style="padding: 7px 10px; font-size: 11px; text-align: right; font-weight: bold; color: #1a1612;">&#8377; ${employee.monthlySalary.toLocaleString('en-IN')}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #eee;">
+              <td style="padding: 7px 10px; font-size: 11px; color: #333;">Per Day Salary</td>
+              <td style="padding: 7px 10px; font-size: 11px; text-align: right; font-weight: bold; color: #1a1612;">&#8377; ${salary.perDaySalary.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #eee; background: #faf8f5;">
+              <td style="padding: 7px 10px; font-size: 11px; color: #333;">Earned Days (Present + Half Day)</td>
+              <td style="padding: 7px 10px; font-size: 11px; text-align: right; font-weight: bold; color: #1a1612;">${salary.earnedDays}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #eee;">
+              <td style="padding: 7px 10px; font-size: 11px; color: #333;">Gross Salary</td>
+              <td style="padding: 7px 10px; font-size: 11px; text-align: right; font-weight: bold; color: #1a1612;">&#8377; ${salary.grossSalary.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #eee; background: #faf8f5;">
+              <td style="padding: 7px 10px; font-size: 11px; color: #c84b2f; font-weight: 500;">Deduction (Absent Days: ${salary.deductedDays})</td>
+              <td style="padding: 7px 10px; font-size: 11px; text-align: right; font-weight: bold; color: #c84b2f;">- &#8377; ${salary.deduction.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+            </tr>
+            <tr style="background: #1a1612;">
+              <td style="padding: 9px 10px; font-size: 12px; font-weight: bold; color: white;">NET SALARY</td>
+              <td style="padding: 9px 10px; font-size: 13px; font-weight: bold; text-align: right; color: #c84b2f;">&#8377; ${netSalary.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Amount in Words -->
+        <table cellpadding="0" cellspacing="0" style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
+          <tr>
+            <td style="background: #f9f7f4; border-left: 3px solid #c84b2f; padding: 8px 12px; border-radius: 2px;">
+              <div style="font-size: 8px; color: #999; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; font-weight: bold;">Amount in Words</div>
+              <div style="font-size: 11px; font-weight: bold; color: #1a1612;">RUPEES ${amountInWords.toUpperCase()}</div>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Footer -->
+        <table cellpadding="0" cellspacing="0" style="width: 100%; border-collapse: collapse; margin-top: 15px; border-top: 1px solid #eee;">
+          <tr>
+            <td style="width: 60%; vertical-align: top; padding-top: 10px; font-size: 9px; color: #888; line-height: 1.4;">
+              <strong>Note:</strong> This is a system-generated salary slip. For any discrepancies or clarifications, please contact the HR department.
+            </td>
+            <td style="width: 40%; text-align: right; vertical-align: top; padding-top: 10px;">
+              <div style="font-size: 9px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 22px; font-weight: bold;">Authorized Signature</div>
+              <div style="border-top: 1px solid #333; display: inline-block; width: 140px; padding-top: 5px; font-size: 10px; font-weight: bold; color: #1a1612; text-align: center;">
+                HR Manager
+              </div>
+            </td>
+          </tr>
+        </table>
+        
+        <div style="text-align: center; margin-top: 20px; font-size: 9px; color: #bbb; letter-spacing: 1px;">
+          Powered by <strong style="color: #c84b2f;">AttenZo</strong> &mdash; Attendance Management System
         </div>
       </div>
     </body>
@@ -447,3 +416,8 @@ exports.downloadSalarySlip = async (req, res) => {
     res.status(500).json({ message: err.message || "Internal server error" }); 
   }
 };
+
+// Export helper functions for other controllers to reuse
+exports.generateSalarySlipHTML = generateSalarySlipHTML;
+exports.getDatesInMonth = getDatesInMonth;
+exports.numberToWords = numberToWords;

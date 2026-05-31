@@ -2,7 +2,7 @@ const router = require("express").Router();
 const auth = require("../middleware/auth");
 const role = require("../middleware/role");
 const { createOffice, getOffices, updateOffice, deleteOffice, geocodeOfficeAddress, clearAllOffices } = require("../controllers/officeController");
-const { createEmployee, getEmployees, getEmployee, updateEmployee, updateWorkingHours, deleteEmployee, deactivateEmployee, activateEmployee, getDeletedEmployees, restoreEmployee, permanentDeleteEmployee } = require("../controllers/employeeController");
+const { createEmployee, getEmployees, getEmployee, updateEmployee, updateWorkingHours, deleteEmployee, deactivateEmployee, activateEmployee, getDeletedEmployees, restoreEmployee, permanentDeleteEmployee, resetPin } = require("../controllers/employeeController");
 const { getHolidays, createHoliday, updateHoliday, deleteHoliday } = require("../controllers/holidayController");
 const { getSalaryCalc, downloadSalarySlip } = require("../controllers/salaryController");
 const { requestRenewal, getRenewalStatus } = require("../controllers/renewalController");
@@ -42,6 +42,7 @@ router.patch("/employees/:id/activate", activateEmployee);
 router.delete("/employees/:id", deleteEmployee);
 router.patch("/employees/:id/restore", restoreEmployee);
 router.delete("/employees/:id/permanent", permanentDeleteEmployee);
+router.patch("/employees/:id/reset-pin", resetPin);
 
 // Holiday
 router.get("/holidays", getHolidays);

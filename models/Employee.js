@@ -30,6 +30,8 @@ const employeeSchema = new mongoose.Schema({
   isActive: { type: Boolean, default: true },
   isDeleted: { type: Boolean, default: false }, // Soft delete flag for bin
   selfieRequired: { type: Boolean, default: false }, // Admin can set if selfie is mandatory
+  pin:            { type: String }, // 4-digit numeric PIN
+  isPinVerified:  { type: Boolean, default: false },
 }, { timestamps: true });
 
 employeeSchema.index({ adminId: 1, employeeCode: 1 }, { unique: true });

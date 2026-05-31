@@ -1,9 +1,14 @@
 const Employee = require("../models/Employee");
+const Attendance = require("../models/Attendance");
+const Holiday = require("../models/Holiday");
+const Admin = require("../models/Admin");
 const jwt = require('jsonwebtoken');
+const pdf = require('html-pdf');
+const { generateSalarySlipHTML, getDatesInMonth } = require("./salaryController");
 
-// Simple alternative - return HTML that can be printed as PDF
+// Generate fully calculated beautiful PDF slip instead of plain print HTML
 exports.downloadSalarySlipHTML = async (req, res) => {
-  console.log('=== HTML SALARY SLIP DOWNLOAD START ===');
+  console.log('=== CALCULATED SALARY SLIP PDF DOWNLOAD START ===');
   console.log('Employee ID:', req.params.employeeId);
   console.log('Month:', req.query.month);
   
@@ -21,152 +26,103 @@ exports.downloadSalarySlipHTML = async (req, res) => {
     
     const { month } = req.query;
     if (!month) {
-      return res.status(400).send('<h1>Month parameter required</h1>');
+      return res.status(400).send('<h1>Month parameter required (YYYY-MM format)</h1>');
     }
 
-    const employee = await Employee.findOne({ _id: req.params.employeeId, adminId });
+    // Validate month format
+    if (!/^\d{4}-\d{2}$/.test(month)) {
+      return res.status(400).send('<h1>Invalid month format. Use YYYY-MM</h1>');
+    }
+
+    console.log('Finding employee and admin...');
+    const [employee, admin] = await Promise.all([
+      Employee.findOne({ _id: req.params.employeeId, adminId }).populate("officeId", "name"),
+      Admin.findById(adminId).select('companyName')
+    ]);
+    
     if (!employee) {
       return res.status(404).send('<h1>Employee not found</h1>');
     }
 
     if (!employee.monthlySalary || employee.monthlySalary <= 0) {
-      return res.status(400).send('<h1>Employee salary not set</h1>');
+      return res.status(400).send('<h1>Employee salary not set. Please update employee salary first.</h1>');
     }
 
+    const [year, mon] = month.split("-").map(Number);
+    const allDates = getDatesInMonth(year, mon);
     const monthLabel = new Date(`${month}-01`).toLocaleDateString("en-IN", { month: "long", year: "numeric" });
 
-    // Simple HTML response for now
-    const html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <title>Salary Slip - ${employee.name}</title>
-      <style>
-        body { 
-          font-family: Arial, sans-serif; 
-          margin: 0;
-          padding: 20px;
-          background: white;
-        }
-        .container {
-          max-width: 800px;
-          margin: 0 auto;
-          background: white;
-          padding: 40px;
-          box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }
-        .header { 
-          text-align: center; 
-          margin-bottom: 30px;
-          border-bottom: 2px solid #333;
-          padding-bottom: 20px;
-        }
-        .company-name {
-          font-size: 32px;
-          font-weight: bold;
-          color: #1a1612;
-          margin-bottom: 5px;
-        }
-        .document-title {
-          font-size: 18px;
-          color: #666;
-          text-transform: uppercase;
-          letter-spacing: 2px;
-        }
-        .info-section {
-          margin-bottom: 30px;
-        }
-        .info-row {
-          display: flex;
-          justify-content: space-between;
-          margin-bottom: 10px;
-          padding: 8px 0;
-          border-bottom: 1px dotted #ccc;
-        }
-        .label { 
-          font-weight: bold;
-          color: #333;
-        }
-        .value {
-          color: #000;
-        }
-        .salary-amount {
-          font-size: 24px;
-          font-weight: bold;
-          color: #c84b2f;
-          text-align: center;
-          margin: 20px 0;
-          padding: 15px;
-          border: 2px solid #c84b2f;
-          background: #faf7f4;
-        }
-        .footer {
-          margin-top: 50px;
-          text-align: center;
-          font-size: 12px;
-          color: #666;
-        }
-        @media print {
-          body { margin: 0; }
-          .container { box-shadow: none; }
-        }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="header">
-          <div class="company-name">ATTENZO</div>
-          <div class="document-title">Salary Slip</div>
-        </div>
-        
-        <div class="info-section">
-          <div class="info-row">
-            <span class="label">Employee Name:</span>
-            <span class="value">${employee.name}</span>
-          </div>
-          <div class="info-row">
-            <span class="label">Employee Code:</span>
-            <span class="value">${employee.employeeCode}</span>
-          </div>
-          <div class="info-row">
-            <span class="label">Designation:</span>
-            <span class="value">${employee.designation}</span>
-          </div>
-          <div class="info-row">
-            <span class="label">Department:</span>
-            <span class="value">${employee.department || 'N/A'}</span>
-          </div>
-          <div class="info-row">
-            <span class="label">Salary Period:</span>
-            <span class="value">${monthLabel}</span>
-          </div>
-        </div>
-        
-        <div class="salary-amount">
-          Monthly Salary: ₹${employee.monthlySalary.toLocaleString('en-IN')}
-        </div>
-        
-        <div class="footer">
-          <p><strong>Note:</strong> This is a system-generated salary slip.</p>
-          <p>Generated on: ${new Date().toLocaleDateString('en-IN')}</p>
-          <p><strong>AttenZo Attendance Management System</strong></p>
-        </div>
-      </div>
-      
-      <script>
-        // Auto print when page loads
-        window.onload = function() {
-          setTimeout(() => {
-            window.print();
-          }, 1000);
-        }
-      </script>
-    </body>
-    </html>
-    `;
+    // Fetch holidays and attendance
+    const holidays = await Holiday.find({ adminId, date: { $regex: `^${month}` } });
+    const holidayDates = new Set(holidays.map(h => h.date));
 
-    res.setHeader('Content-Type', 'text/html');
-    res.send(html);
+    const records = await Attendance.find({ employeeId: employee._id, date: { $regex: `^${month}` } });
+    const attMap = {};
+    records.forEach(r => { attMap[r.date] = r; });
+
+    let totalWorkingDays = 0, present = 0, absent = 0, halfDay = 0, weeklyOffs = 0, holidayCount = 0, totalHours = 0;
+
+    allDates.forEach(date => {
+      const dayOfWeek = new Date(date).getDay();
+      if (employee.weeklyOff.includes(dayOfWeek)) { weeklyOffs++; return; }
+      if (holidayDates.has(date)) { holidayCount++; return; }
+      totalWorkingDays++;
+      const rec = attMap[date];
+      if (!rec) { absent++; return; }
+      if (rec.status === "present") present++;
+      else if (rec.status === "half-day") halfDay++;
+      else absent++;
+      if (rec.checkIn?.time && rec.checkOut?.time)
+        totalHours += (new Date(rec.checkOut.time) - new Date(rec.checkIn.time)) / 3600000;
+    });
+
+    const perDay    = employee.monthlySalary / (totalWorkingDays || 1);
+    const earned    = present + halfDay * 0.5;
+    const deducted  = absent;
+    const gross     = parseFloat((perDay * earned).toFixed(2));
+    const deduction = parseFloat((perDay * deducted).toFixed(2));
+    const net       = gross;
+
+    // Generate HTML
+    const htmlContent = generateSalarySlipHTML({
+      employee: { 
+        name: employee.name, 
+        employeeCode: employee.employeeCode, 
+        designation: employee.designation, 
+        department: employee.department || 'N/A', 
+        monthlySalary: employee.monthlySalary 
+      },
+      companyName: admin?.companyName || 'Company',
+      month, monthLabel,
+      attendance: { totalWorkingDays, present, halfDay, absent, weeklyOffs, holidayCount },
+      salary: { perDaySalary: parseFloat(perDay.toFixed(2)), earnedDays: earned, deductedDays: deducted, grossSalary: gross, deduction },
+      totalHoursWorked: parseFloat(totalHours.toFixed(2)),
+      holidays,
+      netSalary: net
+    });
+
+    // PDF options matching salaryController
+    const options = {
+      format: 'A4',
+      border: {
+        top: "0.3in",
+        right: "0.4in",
+        bottom: "0.3in",
+        left: "0.4in"
+      },
+      zoomFactor: '0.85'
+    };
+
+    pdf.create(htmlContent, options).toBuffer((err, buffer) => {
+      if (err) {
+        console.error('PDF generation error:', err);
+        return res.status(500).send('<h1>Failed to generate PDF. Please try again.</h1>');
+      }
+
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `inline; filename=salary-slip-${employee.employeeCode}-${month}.pdf`);
+      res.send(buffer);
+    });
     
   } catch (err) {
     console.error('HTML slip error:', err);
